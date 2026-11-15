@@ -32,7 +32,8 @@ public final class VIPTIERS extends JavaPlugin implements Listener {
         Player player = event.getPlayer();
 
         player.setGameMode(GameMode.ADVENTURE);
-        player.setAllowFlight(false);
+        player.setAllowFlight(true);
+        player.setFlying(true);
         player.setFlying(false);
         player.setInvulnerable(true);
         player.setCollidable(false);
