@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIPTIERS | Player Profile</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 30px 16px;
+            background: #090912;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 40px auto;
+        }
+
+        .profile {
+            padding: 30px;
+            background: #151522;
+            border: 1px solid #49376b;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        h1 { color: #b58aff; }
+
+        .uuid, .muted { color: #999; }
+
+        .tiers {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 14px;
+            margin-top: 25px;
+        }
+
+        .tier {
+            padding: 20px;
+            background: #151522;
+            border: 1px solid #29253c;
+            border-radius: 10px;
+        }
+
+        .tier h3 { color: #b58aff; }
+
+        .tier p { color: #aaa; }
+
+        a { color: #b58aff; }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <section class="profile">
+            <h1 id="username">Player Profile</h1>
+            <p class="uuid">VIPTIERS Player</p>
+            <p class="muted" id="status">Profile data coming soon.</p>
+        </section>
+
+        <h2>Gamemode Tiers</h2>
+
+        <section class="tiers">
+            <div class="tier"><h3>Crystal</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>UHC</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>Pot</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>NethOP</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>DiaSMP</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>Sword</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>Axe</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>Mace</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>Spear Mace</h3><p>Not ranked</p></div>
+            <div class="tier"><h3>Cart</h3><p>Not ranked</p></div>
+        </section>
+
+        <p style="text-align:center;margin-top:35px">
+            <a href="index.html">Back to VIPTIERS</a>
+        </p>
+    </main>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const player = params.get("username");
+
+        if (player) {
+            document.getElementById("username").textContent = player;
+        }
+    </script>
+</body>
+</html>
