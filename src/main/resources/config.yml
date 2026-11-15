@@ -1,0 +1,19 @@
+# VIPTIERS Verification Settings
+
+website:
+  url: "https://viptiers.com"
+  verification-path: "/verify"
+
+verification:
+  enabled: true
+  kick-after-verification: true
+  kick-message:
+    - ""
+    - "&d&lVIPTIERS"
+    - "&aYour account has been verified!"
+    - "&7You can now leave the verification server."
+    - ""
+
+messages:
+  join: "&dWelcome to VIPTIERS!"
+  waiting: "&ePlease verify your Minecraft account on our website."
