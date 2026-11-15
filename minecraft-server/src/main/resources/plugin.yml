@@ -1,7 +1,12 @@
 
 name: VIPTIERS
-version: 1.0.0
+version: 1.1.0
 main: net.viptiers.server.VIPTIERS
 api-version: '1.21'
 author: VIPTIERS
-description: VIPTIERS Minecraft PvP Network
+description: VIPTIERS Minecraft PvP Verification Network
+
+commands:
+  verify:
+    description: Verify your Minecraft account
+    usage: /verify <code>
