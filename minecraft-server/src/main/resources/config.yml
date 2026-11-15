@@ -1,7 +1,7 @@
 
 website-url: "https://suffix55.github.io/VIPTIERS/"
 
-backend-url: "https://YOUR-RENDER-SERVICE.onrender.com"
+backend-url: "https://viptiers.onrender.com"
 
 server:
   name: "VIPTIERS"
