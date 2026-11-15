@@ -1,0 +1,12 @@
+{
+  "name": "viptiers-verification",
+  "version": "1.0.0",
+  "description": "VIPTIERS account verification backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
