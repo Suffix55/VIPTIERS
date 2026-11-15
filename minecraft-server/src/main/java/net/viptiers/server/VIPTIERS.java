@@ -4,8 +4,10 @@ package net.viptiers.server;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
+import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.WorldCreator;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,19 +18,21 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.generator.ChunkGenerator;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Random;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +42,7 @@ public final class VIPTIERS extends JavaPlugin
     private HttpClient http;
     private String backendUrl;
     private String apiSecret;
+    private World verificationWorld;
 
     @Override
     public void onEnable() {
@@ -48,12 +53,41 @@ public final class VIPTIERS extends JavaPlugin
         apiSecret = getConfig().getString("api-secret", "");
 
         http = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
+                .connectTimeout(Duration.ofSeconds(20))
                 .build();
 
         if (backendUrl.isBlank() || apiSecret.isBlank()) {
             getLogger().severe("Backend URL or API secret is missing!");
         }
+
+        // Create an empty verification world.
+        ChunkGenerator voidGenerator = new ChunkGenerator() {
+            @Override
+            public ChunkData generateChunkData(
+                    World world,
+                    Random random,
+                    int x,
+                    int z,
+                    BiomeGrid biome
+            ) {
+                return createChunkData(world);
+            }
+        };
+
+        verificationWorld = new WorldCreator("viptiers_void")
+                .environment(World.Environment.NORMAL)
+                .generator(voidGenerator)
+                .createWorld();
+
+        if (verificationWorld == null) {
+            getLogger().severe("Could not create verification void world!");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        verificationWorld.setGameRule(GameRule.DO_MOB_SPAWNING, false);
+        verificationWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+        verificationWorld.setTime(6000);
 
         getServer().getPluginManager().registerEvents(this, this);
 
@@ -67,7 +101,7 @@ public final class VIPTIERS extends JavaPlugin
     private HttpRequest.Builder authenticatedRequest(String url) {
         return HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(15))
+                .timeout(Duration.ofSeconds(60))
                 .header("Authorization", "Bearer " + apiSecret)
                 .header("Content-Type", "application/json");
     }
@@ -83,8 +117,7 @@ public final class VIPTIERS extends JavaPlugin
         player.setAllowFlight(true);
         player.setFlying(true);
 
-        World world = player.getWorld();
-        player.teleport(new Location(world, 0.5, 200, 0.5));
+        player.teleport(new Location(verificationWorld, 0.5, 100, 0.5));
 
         player.sendMessage("");
         player.sendMessage(ChatColor.LIGHT_PURPLE.toString()
@@ -97,15 +130,15 @@ public final class VIPTIERS extends JavaPlugin
                 + "Then enter: " + ChatColor.WHITE + "/verify <code>");
         player.sendMessage("");
 
-        checkPlayerStatus(player);
+        checkPlayerStatus(player.getUniqueId(), player.getName());
     }
 
-    private void checkPlayerStatus(Player player) {
+    private void checkPlayerStatus(UUID uuid, String username) {
         if (backendUrl.isBlank() || apiSecret.isBlank()) {
+            sendPlayerMessage(uuid,
+                    ChatColor.RED + "Verification service is not configured.");
             return;
         }
-
-        String uuid = player.getUniqueId().toString();
 
         HttpRequest request = authenticatedRequest(
                 backendUrl + "/api/verification/status/" + uuid
@@ -113,46 +146,36 @@ public final class VIPTIERS extends JavaPlugin
 
         http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
-                    if (!player.isOnline()) return;
-
                     if (response.statusCode() == 200
                             && response.body().contains("\"verified\":true")) {
-                        Bukkit.getScheduler().runTask(this, () -> {
-                            if (player.isOnline()) {
-                                player.kickPlayer(
-                                        ChatColor.GREEN
-                                        + "You are already verified!"
-                                );
-                            }
-                        });
+                        runForPlayer(uuid, player ->
+                                player.kickPlayer(ChatColor.GREEN
+                                        + "You are already verified!")
+                        );
                     } else if (response.statusCode() == 404
                             || (response.statusCode() == 200
                             && response.body().contains("\"verified\":false"))) {
-                        requestCode(player);
+                        requestCode(uuid, username);
                     } else {
-                        sendPlayerMessage(player,
+                        getLogger().warning(
+                                "Status request failed: " + response.statusCode()
+                        );
+                        sendPlayerMessage(uuid,
                                 ChatColor.RED
                                 + "Could not check verification. Please try again.");
-                        getLogger().warning(
-                                "Verification status request failed: "
-                                + response.statusCode()
-                        );
                     }
                 })
                 .exceptionally(error -> {
                     getLogger().warning(
                             "Backend connection failed: " + error.getMessage()
                     );
-                    sendPlayerMessage(player,
+                    sendPlayerMessage(uuid,
                             ChatColor.RED + "Verification service unavailable.");
                     return null;
                 });
     }
 
-    private void requestCode(Player player) {
-        String uuid = player.getUniqueId().toString();
-        String username = player.getName();
-
+    private void requestCode(UUID uuid, String username) {
         String body = "{\"uuid\":\"" + uuid
                 + "\",\"username\":\"" + username + "\"}";
 
@@ -164,8 +187,6 @@ public final class VIPTIERS extends JavaPlugin
 
         http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
-                    if (!player.isOnline()) return;
-
                     if (response.statusCode() == 200) {
                         Matcher matcher = Pattern.compile(
                                 "\"code\"\\s*:\\s*\"(\\d{6})\""
@@ -174,18 +195,21 @@ public final class VIPTIERS extends JavaPlugin
                         if (matcher.find()) {
                             String code = matcher.group(1);
 
-                            sendPlayerMessage(player, "");
-                            sendPlayerMessage(player,
+                            sendPlayerMessage(uuid, "");
+                            sendPlayerMessage(uuid,
                                     ChatColor.LIGHT_PURPLE.toString()
                                     + ChatColor.BOLD + "YOUR CODE: "
                                     + ChatColor.WHITE + code);
-                            sendPlayerMessage(player,
+                            sendPlayerMessage(uuid,
                                     ChatColor.YELLOW
                                     + "Enter /verify " + code);
-                            sendPlayerMessage(player, "");
+                            sendPlayerMessage(uuid, "");
                         }
                     } else {
-                        sendPlayerMessage(player,
+                        getLogger().warning(
+                                "Code request failed: " + response.statusCode()
+                        );
+                        sendPlayerMessage(uuid,
                                 ChatColor.RED + "Could not generate your code.");
                     }
                 })
@@ -193,6 +217,8 @@ public final class VIPTIERS extends JavaPlugin
                     getLogger().warning(
                             "Could not generate code: " + error.getMessage()
                     );
+                    sendPlayerMessage(uuid,
+                            ChatColor.RED + "Could not contact verification service.");
                     return null;
                 });
     }
@@ -221,11 +247,11 @@ public final class VIPTIERS extends JavaPlugin
             return true;
         }
 
+        UUID uuid = player.getUniqueId();
+        String code = args[0];
+
         player.sendMessage(ChatColor.YELLOW
                 + "Checking your verification code...");
-
-        String uuid = player.getUniqueId().toString();
-        String code = args[0];
 
         String body = "{\"uuid\":\"" + uuid
                 + "\",\"code\":\"" + code + "\"}";
@@ -238,88 +264,101 @@ public final class VIPTIERS extends JavaPlugin
 
         http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
-                    if (!player.isOnline()) return;
-
                     if (response.statusCode() == 200
                             && response.body().contains("\"verified\":true")) {
-                        Bukkit.getScheduler().runTask(this, () -> {
-                            if (player.isOnline()) {
-                                player.kickPlayer(
+                        runForPlayer(uuid, onlinePlayer ->
+                                onlinePlayer.kickPlayer(
                                         ChatColor.GREEN
                                         + "Your account has been verified!"
-                                );
-                            }
-                        });
+                                )
+                        );
                     } else {
-                        sendPlayerMessage(player,
+                        sendPlayerMessage(uuid,
                                 ChatColor.RED
                                 + "Incorrect or expired verification code.");
                     }
                 })
                 .exceptionally(error -> {
-                    sendPlayerMessage(player,
-                            ChatColor.RED + "Could not contact verification service.");
                     getLogger().warning(
                             "Verification request failed: " + error.getMessage()
                     );
+                    sendPlayerMessage(uuid,
+                            ChatColor.RED
+                            + "Could not contact verification service.");
                     return null;
                 });
 
         return true;
     }
 
-    private void sendPlayerMessage(Player player, String message) {
+    private void sendPlayerMessage(UUID uuid, String message) {
+        runForPlayer(uuid, player -> player.sendMessage(message));
+    }
+
+    private void runForPlayer(UUID uuid, Consumer<Player> action) {
         Bukkit.getScheduler().runTask(this, () -> {
-            if (player.isOnline()) {
-                player.sendMessage(message);
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                action.accept(player);
             }
         });
     }
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (event instanceof PlayerTeleportEvent) return;
-        if (event.getTo() == null) return;
+        if (!event.getPlayer().getWorld().equals(verificationWorld)) {
+            return;
+        }
+
+        if (event instanceof PlayerTeleportEvent) {
+            return;
+        }
 
         Location from = event.getFrom();
         Location to = event.getTo();
 
+        if (to == null) return;
+
         if (from.getX() != to.getX()
                 || from.getY() != to.getY()
                 || from.getZ() != to.getZ()) {
-            event.setTo(from);
-        }
-    }
-
-    @EventHandler
-    public void onBlockBreak(BlockBreakEvent event) {
-        event.setCancelled(true);
-    }
-
-    @EventHandler
-    public void onBlockPlace(BlockPlaceEvent event) {
-        event.setCancelled(true);
-    }
-
-    @EventHandler
-    public void onInteract(PlayerInteractEvent event) {
-        event.setCancelled(true);
-    }
-
-    @EventHandler
-    public void onDrop(PlayerDropItemEvent event) {
-        event.setCancelled(true);
-    }
-
-    @EventHandler
-    public void onDamage(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Player) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        // Nothing needed here yet.
+    public void onBlockBreak(BlockBreakEvent event) {
+        if (event.getPlayer().getWorld().equals(verificationWorld)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onBlockPlace(BlockPlaceEvent event) {
+        if (event.getPlayer().getWorld().equals(verificationWorld)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onInteract(PlayerInteractEvent event) {
+        if (event.getPlayer().getWorld().equals(verificationWorld)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onDrop(PlayerDropItemEvent event) {
+        if (event.getPlayer().getWorld().equals(verificationWorld)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onDamage(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player player
+                && player.getWorld().equals(verificationWorld)) {
+            event.setCancelled(true);
+        }
     }
 }
