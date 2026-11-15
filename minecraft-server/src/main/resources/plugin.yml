@@ -1,0 +1,7 @@
+
+name: VIPTIERS
+version: 1.0.0
+main: net.viptiers.server.VIPTIERS
+api-version: '1.21'
+author: VIPTIERS
+description: VIPTIERS Minecraft PvP Network
