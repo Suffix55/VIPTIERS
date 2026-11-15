@@ -1,0 +1,6 @@
+name: VIPTIERS
+version: 1.0.0
+main: net.viptiers.verification.VIPTIERSVerification
+api-version: '1.21'
+author: VIPTIERS
+description: VIPTIERS Minecraft account verification system
