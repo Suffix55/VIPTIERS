@@ -1,0 +1,15 @@
+
+website-url: "https://suffix55.github.io/VIPTIERS/"
+
+backend-url: "https://YOUR-RENDER-SERVICE.onrender.com"
+
+server:
+  name: "VIPTIERS"
+  version: "1.21.11"
+  verification-required: true
+
+messages:
+  prefix: "&d&lVIPTIERS &8» "
+  welcome: "&7Welcome to VIPTIERS!"
+  verify: "&ePlease verify your Minecraft account on our website."
+  verified: "&aYour account has been verified!"
