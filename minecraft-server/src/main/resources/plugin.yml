@@ -1,6 +1,6 @@
 
 name: VIPTIERS
-version: 1.1.0
+version: 1.2.0
 main: net.viptiers.server.VIPTIERS
 api-version: '1.21'
 author: VIPTIERS
@@ -10,3 +10,23 @@ commands:
   verify:
     description: Verify your Minecraft account
     usage: /verify <code>
+
+  verified:
+    description: List all verified players
+    usage: /verified
+    permission: viptiers.admin
+
+  verifyinfo:
+    description: Check a player's verification status
+    usage: /verifyinfo <player>
+    permission: viptiers.admin
+
+  unverify:
+    description: Revoke a player's verification
+    usage: /unverify <player>
+    permission: viptiers.admin
+
+permissions:
+  viptiers.admin:
+    description: Access VIPTIERS verification administration
+    default: op
