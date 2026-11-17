@@ -3,13 +3,11 @@ const express = require("express");
 const crypto = require("crypto");
 
 const app = express();
-
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const API_SECRET = process.env.API_SECRET;
 const WEBSITE_ORIGIN = "https://suffix55.github.io";
-
 const CODE_LIFETIME = 10 * 60 * 1000;
 
 const pendingCodes = new Map();
@@ -22,7 +20,7 @@ app.use((req, res, next) => {
     if (origin === WEBSITE_ORIGIN) {
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Vary", "Origin");
-        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     }
 
@@ -49,9 +47,7 @@ function generateCode() {
             .toString()
             .padStart(6, "0");
 
-        if (!pendingCodes.has(code)) {
-            return code;
-        }
+        if (!pendingCodes.has(code)) return code;
     }
 
     throw new Error("Could not generate code");
@@ -61,18 +57,25 @@ function cleanExpiredCodes() {
     const now = Date.now();
 
     for (const [code, entry] of pendingCodes) {
-        if (entry.expiresAt <= now) {
-            pendingCodes.delete(code);
-        }
+        if (entry.expiresAt <= now) pendingCodes.delete(code);
     }
 }
 
-// Backend health check
+function findPlayerByUsername(username) {
+    const normalized = username.toLowerCase();
+
+    for (const [uuid, player] of verifiedPlayers) {
+        if (player.username.toLowerCase() === normalized) {
+            return { uuid, ...player };
+        }
+    }
+
+    return null;
+}
+
+// Health check
 app.get("/", (req, res) => {
-    res.json({
-        name: "VIPTIERS",
-        status: "online"
-    });
+    res.json({ name: "VIPTIERS", status: "online" });
 });
 
 // Website requests a verification code
@@ -113,7 +116,7 @@ app.post("/api/verification/start", (req, res) => {
     });
 });
 
-// Minecraft plugin confirms the code
+// Plugin completes verification
 app.post("/api/verification/complete", authenticate, (req, res) => {
     cleanExpiredCodes();
 
@@ -131,7 +134,8 @@ app.post("/api/verification/complete", authenticate, (req, res) => {
 
     const entry = pendingCodes.get(code);
 
-    if (!entry || entry.username.toLowerCase() !== username.toLowerCase()) {
+    if (!entry ||
+        entry.username.toLowerCase() !== username.toLowerCase()) {
         return res.status(400).json({
             error: "Incorrect code or Minecraft username"
         });
@@ -151,7 +155,7 @@ app.post("/api/verification/complete", authenticate, (req, res) => {
     });
 });
 
-// Plugin checks whether a player is verified
+// Check verification status by UUID
 app.get("/api/verification/status/:uuid", authenticate, (req, res) => {
     const player = verifiedPlayers.get(req.params.uuid);
 
@@ -163,7 +167,63 @@ app.get("/api/verification/status/:uuid", authenticate, (req, res) => {
 
     res.json({
         verified: true,
-        username: player.username
+        username: player.username,
+        verifiedAt: player.verifiedAt
+    });
+});
+
+// Get all verified players
+app.get("/api/verification/players", authenticate, (req, res) => {
+    const players = Array.from(verifiedPlayers.entries()).map(
+        ([uuid, player]) => ({
+            uuid,
+            username: player.username,
+            verifiedAt: player.verifiedAt
+        })
+    );
+
+    res.json({
+        success: true,
+        count: players.length,
+        players
+    });
+});
+
+// Get one verified player by username
+app.get("/api/verification/player/:username", authenticate, (req, res) => {
+    const username = req.params.username;
+
+    const player = findPlayerByUsername(username);
+
+    if (!player) {
+        return res.status(404).json({
+            error: "Verified player not found"
+        });
+    }
+
+    res.json({
+        success: true,
+        player
+    });
+});
+
+// Revoke a player's verification
+app.delete("/api/verification/player/:username", authenticate, (req, res) => {
+    const username = req.params.username;
+
+    const player = findPlayerByUsername(username);
+
+    if (!player) {
+        return res.status(404).json({
+            error: "Verified player not found"
+        });
+    }
+
+    verifiedPlayers.delete(player.uuid);
+
+    res.json({
+        success: true,
+        message: `${player.username} has been unverified`
     });
 });
 
