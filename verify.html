@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,9 +48,7 @@
             outline: none;
         }
 
-        input:focus {
-            border-color: #b58aff;
-        }
+        input:focus { border-color: #b58aff; }
 
         button {
             width: 100%;
@@ -148,19 +147,34 @@
 
     <script>
         const API_URL = "https://viptiers.onrender.com";
+        const PROFILE_URL = "player.html";
+
+        let pollTimer = null;
+        let verificationStartedAt = 0;
+        let currentUsername = "";
 
         async function requestCode() {
-            const username = document.getElementById("username").value.trim();
-            const button = document.getElementById("verifyButton");
-            const message = document.getElementById("message");
-            const result = document.getElementById("result");
+            const username =
+                document.getElementById("username").value.trim();
+
+            const button =
+                document.getElementById("verifyButton");
+
+            const message =
+                document.getElementById("message");
+
+            const result =
+                document.getElementById("result");
+
+            clearTimeout(pollTimer);
 
             message.textContent = "";
             message.className = "";
             result.style.display = "none";
 
             if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
-                message.textContent = "Enter a valid Minecraft username.";
+                message.textContent =
+                    "Enter a valid Minecraft username.";
                 message.className = "error";
                 return;
             }
@@ -183,20 +197,37 @@
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || "Could not generate code.");
+                    throw new Error(
+                        data.error || "Could not generate code."
+                    );
                 }
 
-                document.getElementById("code").textContent = data.code;
+                if (!data.code) {
+                    throw new Error("The server did not return a code.");
+                }
+
+                currentUsername = username;
+                verificationStartedAt = Date.now();
+
+                document.getElementById("code").textContent =
+                    data.code;
+
                 document.getElementById("command").textContent =
                     `/verify ${data.code}`;
 
                 document.getElementById("expiry").textContent =
-                    `This code expires in ${Math.floor(data.expiresIn / 60)} minutes.`;
+                    `This code expires in ${
+                        Math.floor((data.expiresIn || 600) / 60)
+                    } minutes.`;
 
                 result.style.display = "block";
 
-                message.textContent = "Code generated successfully!";
+                message.textContent =
+                    "Code generated! Waiting for Minecraft verification...";
+
                 message.className = "success";
+
+                pollVerification();
 
             } catch (error) {
                 message.textContent = error.message;
@@ -207,18 +238,81 @@
             }
         }
 
+        async function pollVerification() {
+            if (!currentUsername) return;
+
+            if (Date.now() - verificationStartedAt > 600000) {
+                document.getElementById("message").textContent =
+                    "Verification timed out. Generate a new code.";
+
+                document.getElementById("message").className = "error";
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/verification/player/${
+                        encodeURIComponent(currentUsername)
+                    }`,
+                    { cache: "no-store" }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const player = data.player || data;
+
+                    if (
+                        data.success !== false &&
+                        player.username &&
+                        player.uuid &&
+                        player.username.toLowerCase() ===
+                            currentUsername.toLowerCase()
+                    ) {
+                        document.getElementById("message").textContent =
+                            "Account verified! Redirecting to your profile...";
+
+                        document.getElementById("message").className =
+                            "success";
+
+                        clearTimeout(pollTimer);
+
+                        const profileParams = new URLSearchParams({
+                            username: player.username
+                        });
+
+                        window.location.href =
+                            `${PROFILE_URL}?${profileParams.toString()}`;
+
+                        return;
+                    }
+                }
+
+            } catch (error) {
+                console.log("Waiting for verification...");
+            }
+
+            pollTimer = setTimeout(pollVerification, 3000);
+        }
+
         async function copyCommand() {
-            const command = document.getElementById("command").textContent;
+            const command =
+                document.getElementById("command").textContent;
 
             try {
                 await navigator.clipboard.writeText(command);
+
                 document.getElementById("message").textContent =
                     "Command copied!";
-                document.getElementById("message").className = "success";
+
+                document.getElementById("message").className =
+                    "success";
+
             } catch {
                 document.getElementById("message").textContent =
-                    "Could not copy. Please copy the command manually.";
-                document.getElementById("message").className = "error";
+                    "Could not copy. Copy the command manually.";
+
+                document.getElementById("message").className =
+                    "error";
             }
         }
     </script>
