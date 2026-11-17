@@ -1,10 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VIPTIERS | Verify Account</title>
+
     <style>
         * { box-sizing: border-box; }
 
@@ -25,6 +25,7 @@
             background: #151522;
             border: 1px solid #49376b;
             border-radius: 16px;
+            box-shadow: 0 0 35px #8855d922;
         }
 
         h1 { color: #b58aff; }
@@ -32,6 +33,22 @@
         p {
             color: #aaa;
             line-height: 1.6;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            margin-top: 15px;
+            background: #090912;
+            color: white;
+            border: 1px solid #49376b;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #b58aff;
         }
 
         button {
@@ -52,32 +69,158 @@
             cursor: not-allowed;
         }
 
+        #result {
+            display: none;
+            margin-top: 22px;
+            padding: 18px;
+            background: #090912;
+            border: 1px solid #49376b;
+            border-radius: 10px;
+        }
+
+        #code {
+            color: #b58aff;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 6px;
+            margin: 12px 0;
+        }
+
+        #message {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .error { color: #ff7070; }
+        .success { color: #70e69a; }
+
         a { color: #b58aff; }
     </style>
 </head>
+
 <body>
     <main class="panel">
         <h1>VIPTIERS</h1>
         <h2>Minecraft Account Verification</h2>
 
         <p>
-            Verify ownership of your Minecraft account
-            to create your VIPTIERS player profile.
+            Enter your Minecraft Java username to receive
+            a verification code.
         </p>
 
-        <p>
-            You'll be redirected to Microsoft's official
-            sign-in page. VIPTIERS will never ask for
-            your Microsoft password directly.
-        </p>
+        <input
+            id="username"
+            type="text"
+            placeholder="Minecraft username"
+            maxlength="16"
+            autocomplete="off"
+        >
 
-        <button disabled>
-            Microsoft Verification — Coming Soon
+        <button id="verifyButton" onclick="requestCode()">
+            Get Verification Code
         </button>
+
+        <div id="result">
+            <p>Your verification code:</p>
+            <div id="code"></div>
+
+            <p>
+                Join the VIPTIERS Minecraft server and enter:
+            </p>
+
+            <div id="command" style="color:#b58aff;font-weight:bold;">
+                /verify 000000
+            </div>
+
+            <button onclick="copyCommand()">
+                Copy Command
+            </button>
+
+            <p id="expiry"></p>
+        </div>
+
+        <p id="message"></p>
 
         <p>
             <a href="index.html">Back to VIPTIERS</a>
         </p>
     </main>
+
+    <script>
+        const API_URL = "https://viptiers.onrender.com";
+
+        async function requestCode() {
+            const username = document.getElementById("username").value.trim();
+            const button = document.getElementById("verifyButton");
+            const message = document.getElementById("message");
+            const result = document.getElementById("result");
+
+            message.textContent = "";
+            message.className = "";
+            result.style.display = "none";
+
+            if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+                message.textContent = "Enter a valid Minecraft username.";
+                message.className = "error";
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "Generating code...";
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/verification/start`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ username })
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Could not generate code.");
+                }
+
+                document.getElementById("code").textContent = data.code;
+                document.getElementById("command").textContent =
+                    `/verify ${data.code}`;
+
+                document.getElementById("expiry").textContent =
+                    `This code expires in ${Math.floor(data.expiresIn / 60)} minutes.`;
+
+                result.style.display = "block";
+
+                message.textContent = "Code generated successfully!";
+                message.className = "success";
+
+            } catch (error) {
+                message.textContent = error.message;
+                message.className = "error";
+            } finally {
+                button.disabled = false;
+                button.textContent = "Get Verification Code";
+            }
+        }
+
+        async function copyCommand() {
+            const command = document.getElementById("command").textContent;
+
+            try {
+                await navigator.clipboard.writeText(command);
+                document.getElementById("message").textContent =
+                    "Command copied!";
+                document.getElementById("message").className = "success";
+            } catch {
+                document.getElementById("message").textContent =
+                    "Could not copy. Please copy the command manually.";
+                document.getElementById("message").className = "error";
+            }
+        }
+    </script>
 </body>
 </html>
