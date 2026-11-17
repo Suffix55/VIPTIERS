@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VIPTIERS | Player Profile</title>
+
     <style>
         * { box-sizing: border-box; }
 
@@ -33,6 +34,19 @@
 
         .uuid, .muted { color: #999; }
 
+        .status {
+            display: inline-block;
+            padding: 8px 14px;
+            border-radius: 20px;
+            background: #29253c;
+            color: #b58aff;
+        }
+
+        .verified {
+            background: #123522;
+            color: #55e88a;
+        }
+
         .tiers {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -48,18 +62,26 @@
         }
 
         .tier h3 { color: #b58aff; }
-
         .tier p { color: #aaa; }
 
         a { color: #b58aff; }
     </style>
 </head>
+
 <body>
     <main class="container">
+
         <section class="profile">
             <h1 id="username">Player Profile</h1>
-            <p class="uuid">VIPTIERS Player</p>
-            <p class="muted" id="status">Profile data coming soon.</p>
+
+            <p class="uuid" id="uuid">Loading UUID...</p>
+
+            <p class="status" id="verification">
+                Checking verification...
+            </p>
+
+            <p class="muted" id="verifiedDate"></p>
+            <p class="muted" id="status">Loading player profile...</p>
         </section>
 
         <h2>Gamemode Tiers</h2>
@@ -80,15 +102,77 @@
         <p style="text-align:center;margin-top:35px">
             <a href="index.html">Back to VIPTIERS</a>
         </p>
+
     </main>
 
     <script>
+        const API_URL = "https://viptiers.onrender.com";
+
         const params = new URLSearchParams(window.location.search);
         const player = params.get("username");
 
-        if (player) {
-            document.getElementById("username").textContent = player;
+        const usernameElement = document.getElementById("username");
+        const uuidElement = document.getElementById("uuid");
+        const verificationElement = document.getElementById("verification");
+        const dateElement = document.getElementById("verifiedDate");
+        const statusElement = document.getElementById("status");
+
+        async function loadProfile() {
+            if (!player) {
+                statusElement.textContent = "No player username provided.";
+                uuidElement.textContent = "";
+                verificationElement.textContent = "Unknown";
+                return;
+            }
+
+            usernameElement.textContent = player;
+            statusElement.textContent = "Loading player profile...";
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/verification/player/${encodeURIComponent(player)}`
+                );
+
+                const data = await response.json();
+
+                if (!response.ok || data.success === false) {
+                    throw new Error(data.message || "Player not found.");
+                }
+
+                const profile = data.player || data;
+
+                if (!profile.uuid || !profile.username) {
+                    throw new Error("Player data is incomplete.");
+                }
+
+                usernameElement.textContent = profile.username;
+                uuidElement.textContent = "UUID: " + profile.uuid;
+
+                verificationElement.textContent = "Verified";
+                verificationElement.classList.add("verified");
+
+                if (profile.verifiedAt) {
+                    const date = new Date(profile.verifiedAt);
+
+                    dateElement.textContent =
+                        "Verified on: " + date.toLocaleString();
+                }
+
+                statusElement.textContent =
+                    "Welcome to VIPTIERS!";
+
+            } catch (error) {
+                verificationElement.textContent = "Not verified";
+                verificationElement.classList.remove("verified");
+
+                uuidElement.textContent = "";
+                dateElement.textContent = "";
+
+                statusElement.textContent = error.message;
+            }
         }
+
+        loadProfile();
     </script>
 </body>
 </html>
