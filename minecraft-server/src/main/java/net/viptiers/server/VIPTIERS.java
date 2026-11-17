@@ -8,6 +8,9 @@ import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -20,9 +23,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
 import org.bukkit.generator.ChunkGenerator;
 
 import java.net.URI;
@@ -58,9 +58,10 @@ public final class VIPTIERS extends JavaPlugin
 
         if (backendUrl.isBlank() || apiSecret.isBlank()) {
             getLogger().severe("Backend URL or API secret is missing!");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
         }
 
-        // Create an empty verification world.
         ChunkGenerator voidGenerator = new ChunkGenerator() {
             @Override
             public ChunkData generateChunkData(
@@ -91,8 +92,16 @@ public final class VIPTIERS extends JavaPlugin
 
         getServer().getPluginManager().registerEvents(this, this);
 
-        if (getCommand("verify") != null) {
-            getCommand("verify").setExecutor(this);
+        String[] commands = {
+                "verify", "verified", "verifyinfo", "unverify"
+        };
+
+        for (String name : commands) {
+            if (getCommand(name) != null) {
+                getCommand(name).setExecutor(this);
+            } else {
+                getLogger().severe("Command missing from plugin.yml: " + name);
+            }
         }
 
         getLogger().info("VIPTIERS verification plugin enabled!");
@@ -130,16 +139,10 @@ public final class VIPTIERS extends JavaPlugin
                 + "Then enter: " + ChatColor.WHITE + "/verify <code>");
         player.sendMessage("");
 
-        checkPlayerStatus(player.getUniqueId(), player.getName());
+        checkPlayerStatus(player.getUniqueId());
     }
 
-    private void checkPlayerStatus(UUID uuid, String username) {
-        if (backendUrl.isBlank() || apiSecret.isBlank()) {
-            sendPlayerMessage(uuid,
-                    ChatColor.RED + "Verification service is not configured.");
-            return;
-        }
-
+    private void checkPlayerStatus(UUID uuid) {
         HttpRequest request = authenticatedRequest(
                 backendUrl + "/api/verification/status/" + uuid
         ).GET().build();
@@ -152,73 +155,21 @@ public final class VIPTIERS extends JavaPlugin
                                 player.kickPlayer(ChatColor.GREEN
                                         + "You are already verified!")
                         );
-                    } else if (response.statusCode() == 404
-                            || (response.statusCode() == 200
-                            && response.body().contains("\"verified\":false"))) {
-                        requestCode(uuid, username);
+                    } else if (response.statusCode() == 404) {
+                        sendPlayerMessage(uuid, ChatColor.YELLOW
+                                + "Visit the VIPTIERS website to get your code.");
                     } else {
-                        getLogger().warning(
-                                "Status request failed: " + response.statusCode()
-                        );
-                        sendPlayerMessage(uuid,
-                                ChatColor.RED
+                        getLogger().warning("Status request failed: "
+                                + response.statusCode());
+                        sendPlayerMessage(uuid, ChatColor.RED
                                 + "Could not check verification. Please try again.");
                     }
                 })
                 .exceptionally(error -> {
-                    getLogger().warning(
-                            "Backend connection failed: " + error.getMessage()
-                    );
-                    sendPlayerMessage(uuid,
-                            ChatColor.RED + "Verification service unavailable.");
-                    return null;
-                });
-    }
-
-    private void requestCode(UUID uuid, String username) {
-        String body = "{\"uuid\":\"" + uuid
-                + "\",\"username\":\"" + username + "\"}";
-
-        HttpRequest request = authenticatedRequest(
-                backendUrl + "/api/verification/start"
-        )
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-
-        http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
-                    if (response.statusCode() == 200) {
-                        Matcher matcher = Pattern.compile(
-                                "\"code\"\\s*:\\s*\"(\\d{6})\""
-                        ).matcher(response.body());
-
-                        if (matcher.find()) {
-                            String code = matcher.group(1);
-
-                            sendPlayerMessage(uuid, "");
-                            sendPlayerMessage(uuid,
-                                    ChatColor.LIGHT_PURPLE.toString()
-                                    + ChatColor.BOLD + "YOUR CODE: "
-                                    + ChatColor.WHITE + code);
-                            sendPlayerMessage(uuid,
-                                    ChatColor.YELLOW
-                                    + "Enter /verify " + code);
-                            sendPlayerMessage(uuid, "");
-                        }
-                    } else {
-                        getLogger().warning(
-                                "Code request failed: " + response.statusCode()
-                        );
-                        sendPlayerMessage(uuid,
-                                ChatColor.RED + "Could not generate your code.");
-                    }
-                })
-                .exceptionally(error -> {
-                    getLogger().warning(
-                            "Could not generate code: " + error.getMessage()
-                    );
-                    sendPlayerMessage(uuid,
-                            ChatColor.RED + "Could not contact verification service.");
+                    getLogger().warning("Backend connection failed: "
+                            + error.getMessage());
+                    sendPlayerMessage(uuid, ChatColor.RED
+                            + "Verification service unavailable.");
                     return null;
                 });
     }
@@ -230,6 +181,31 @@ public final class VIPTIERS extends JavaPlugin
             String label,
             String[] args
     ) {
+        String name = command.getName().toLowerCase();
+
+        if (name.equals("verify")) {
+            return handleVerify(sender, args);
+        }
+
+        if (!sender.hasPermission("viptiers.admin")) {
+            sender.sendMessage(ChatColor.RED
+                    + "You don't have permission to use this command.");
+            return true;
+        }
+
+        switch (name) {
+            case "verified" -> listVerified(sender);
+            case "verifyinfo" -> playerInfo(sender, args);
+            case "unverify" -> unverifyPlayer(sender, args);
+            default -> {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean handleVerify(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage("Only players can use this command.");
             return true;
@@ -241,19 +217,15 @@ public final class VIPTIERS extends JavaPlugin
             return true;
         }
 
-        if (backendUrl.isBlank() || apiSecret.isBlank()) {
-            player.sendMessage(ChatColor.RED
-                    + "Verification service is not configured.");
-            return true;
-        }
-
         UUID uuid = player.getUniqueId();
+        String username = player.getName();
         String code = args[0];
 
         player.sendMessage(ChatColor.YELLOW
                 + "Checking your verification code...");
 
         String body = "{\"uuid\":\"" + uuid
+                + "\",\"username\":\"" + username
                 + "\",\"code\":\"" + code + "\"}";
 
         HttpRequest request = authenticatedRequest(
@@ -273,22 +245,185 @@ public final class VIPTIERS extends JavaPlugin
                                 )
                         );
                     } else {
-                        sendPlayerMessage(uuid,
-                                ChatColor.RED
+                        sendPlayerMessage(uuid, ChatColor.RED
                                 + "Incorrect or expired verification code.");
                     }
                 })
                 .exceptionally(error -> {
-                    getLogger().warning(
-                            "Verification request failed: " + error.getMessage()
-                    );
-                    sendPlayerMessage(uuid,
-                            ChatColor.RED
+                    getLogger().warning("Verification request failed: "
+                            + error.getMessage());
+                    sendPlayerMessage(uuid, ChatColor.RED
                             + "Could not contact verification service.");
                     return null;
                 });
 
         return true;
+    }
+
+    private void listVerified(CommandSender sender) {
+        sender.sendMessage(ChatColor.LIGHT_PURPLE.toString()
+                + ChatColor.BOLD + "VIPTIERS VERIFIED PLAYERS");
+
+        HttpRequest request = authenticatedRequest(
+                backendUrl + "/api/verification/players"
+        ).GET().build();
+
+        http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
+                    if (response.statusCode() != 200) {
+                        sender.sendMessage(ChatColor.RED
+                                + "Could not load verified players.");
+                        return;
+                    }
+
+                    Matcher countMatcher = Pattern.compile(
+                            "\"count\"\\s*:\\s*(\\d+)"
+                    ).matcher(response.body());
+
+                    String count = countMatcher.find()
+                            ? countMatcher.group(1) : "?";
+
+                    Matcher objects = Pattern.compile(
+                            "\\{[^{}]*\\}"
+                    ).matcher(response.body());
+
+                    StringBuilder result = new StringBuilder();
+                    int number = 0;
+
+                    while (objects.find()) {
+                        String object = objects.group();
+
+                        Matcher uuidMatcher = Pattern.compile(
+                                "\"uuid\"\\s*:\\s*\"([^\"]+)\""
+                        ).matcher(object);
+
+                        Matcher nameMatcher = Pattern.compile(
+                                "\"username\"\\s*:\\s*\"([^\"]+)\""
+                        ).matcher(object);
+
+                        if (uuidMatcher.find() && nameMatcher.find()) {
+                            number++;
+                            result.append(ChatColor.GRAY)
+                                    .append(number)
+                                    .append(". ")
+                                    .append(ChatColor.WHITE)
+                                    .append(nameMatcher.group(1))
+                                    .append(ChatColor.DARK_GRAY)
+                                    .append(" (")
+                                    .append(uuidMatcher.group(1))
+                                    .append(")\n");
+                        }
+                    }
+
+                    String output = result.toString();
+
+                    Bukkit.getScheduler().runTask(this, () -> {
+                        sender.sendMessage(ChatColor.GRAY
+                                + "Total verified: " + ChatColor.GREEN + count);
+
+                        if (output.isEmpty()) {
+                            sender.sendMessage(ChatColor.GRAY
+                                    + "No verified players found.");
+                        } else {
+                            for (String line : output.split("\n")) {
+                                sender.sendMessage(line);
+                            }
+                        }
+                    });
+                })
+                .exceptionally(error -> {
+                    getLogger().warning("Could not load players: "
+                            + error.getMessage());
+                    sender.sendMessage(ChatColor.RED
+                            + "Backend connection failed.");
+                    return null;
+                });
+    }
+
+    private void playerInfo(CommandSender sender, String[] args) {
+        if (args.length != 1 || !args[0].matches("[a-zA-Z0-9_]{3,16}")) {
+            sender.sendMessage(ChatColor.RED
+                    + "Usage: /verifyinfo <player>");
+            return;
+        }
+
+        String username = args[0];
+
+        HttpRequest request = authenticatedRequest(
+                backendUrl + "/api/verification/player/" + username
+        ).GET().build();
+
+        http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
+                    if (response.statusCode() == 200) {
+                        String body = response.body();
+
+                        Matcher uuidMatcher = Pattern.compile(
+                                "\"uuid\"\\s*:\\s*\"([^\"]+)\""
+                        ).matcher(body);
+
+                        Matcher nameMatcher = Pattern.compile(
+                                "\"username\"\\s*:\\s*\"([^\"]+)\""
+                        ).matcher(body);
+
+                        if (uuidMatcher.find() && nameMatcher.find()) {
+                            sender.sendMessage(ChatColor.LIGHT_PURPLE
+                                    + "VIPTIERS PLAYER INFO");
+                            sender.sendMessage(ChatColor.GRAY + "Username: "
+                                    + ChatColor.WHITE + nameMatcher.group(1));
+                            sender.sendMessage(ChatColor.GRAY + "UUID: "
+                                    + ChatColor.WHITE + uuidMatcher.group(1));
+                            sender.sendMessage(ChatColor.GRAY + "Status: "
+                                    + ChatColor.GREEN + "VERIFIED");
+                        }
+                    } else if (response.statusCode() == 404) {
+                        sender.sendMessage(ChatColor.RED
+                                + "That player is not verified.");
+                    } else {
+                        sender.sendMessage(ChatColor.RED
+                                + "Could not check player information.");
+                    }
+                })
+                .exceptionally(error -> {
+                    sender.sendMessage(ChatColor.RED
+                            + "Backend connection failed.");
+                    return null;
+                });
+    }
+
+    private void unverifyPlayer(CommandSender sender, String[] args) {
+        if (args.length != 1 || !args[0].matches("[a-zA-Z0-9_]{3,16}")) {
+            sender.sendMessage(ChatColor.RED
+                    + "Usage: /unverify <player>");
+            return;
+        }
+
+        String username = args[0];
+
+        HttpRequest request = authenticatedRequest(
+                backendUrl + "/api/verification/player/" + username
+        )
+                .DELETE()
+                .build();
+
+        http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
+                    if (response.statusCode() == 200) {
+                        sender.sendMessage(ChatColor.GREEN
+                                + username + " has been unverified.");
+                    } else if (response.statusCode() == 404) {
+                        sender.sendMessage(ChatColor.RED
+                                + "That player is not verified.");
+                    } else {
+                        sender.sendMessage(ChatColor.RED
+                                + "Could not revoke verification.");
+                    }
+                })
+                .exceptionally(error -> {
+                    sender.sendMessage(ChatColor.RED
+                            + "Backend connection failed.");
+                    return null;
+                });
     }
 
     private void sendPlayerMessage(UUID uuid, String message) {
