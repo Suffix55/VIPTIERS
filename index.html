@@ -8,7 +8,9 @@
     <meta name="description" content="VIPTIERS Minecraft PvP rankings, player profiles and tier testing.">
 
     <style>
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -38,7 +40,9 @@
             margin-left: 24px;
         }
 
-        nav a:hover { color: #b78aff; }
+        nav a:hover {
+            color: #b78aff;
+        }
 
         .hero {
             text-align: center;
@@ -51,7 +55,9 @@
             margin: 0 0 15px;
         }
 
-        .hero h1 span { color: #ad7aff; }
+        .hero h1 span {
+            color: #ad7aff;
+        }
 
         .hero p {
             color: #aaa;
@@ -86,14 +92,18 @@
             cursor: pointer;
         }
 
-        button:hover { background: #a477ed; }
+        button:hover {
+            background: #a477ed;
+        }
 
         .section {
             padding: 65px 8%;
             text-align: center;
         }
 
-        .section h2 { font-size: 30px; }
+        .section h2 {
+            font-size: 30px;
+        }
 
         .cards {
             display: grid;
@@ -109,8 +119,13 @@
             border-radius: 12px;
         }
 
-        .card h3 { color: #b58aff; }
-        .card p { color: #aaa; }
+        .card h3 {
+            color: #b58aff;
+        }
+
+        .card p {
+            color: #aaa;
+        }
 
         #result {
             margin-top: 18px;
@@ -123,6 +138,18 @@
             color: #777;
             border-top: 1px solid #28243d;
         }
+
+        @media (max-width: 600px) {
+            header {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            nav a {
+                margin: 0 7px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 
@@ -131,48 +158,103 @@
 <header>
     <div class="logo">VIPTIERS</div>
 
-   <nav>
-    <a href="#home">Home</a>
-    <a href="#tiers">Tierlist</a>
-    <a href="#" onclick="openMyProfile(); return false;">Profiles</a>
-    <a href="verify.html">Verify Account</a>
-</nav>
+    <nav>
+        <a href="#home">Home</a>
+        <a href="#tiers">Tierlist</a>
+        <a href="#" onclick="openMyProfile(); return false;">Profiles</a>
+        <a href="verify.html">Verify Account</a>
+    </nav>
 </header>
 
 <main>
+
     <section class="hero" id="home">
+
         <h1>WELCOME TO <span>VIPTIERS</span></h1>
+
         <p>The Minecraft PvP competitive tiering network.</p>
 
         <div class="search" id="profiles">
+
             <input
                 id="username"
+                type="text"
                 placeholder="Enter Minecraft username"
                 maxlength="16"
+                autocomplete="off"
                 onkeydown="if(event.key === 'Enter') searchPlayer()"
             >
-            <button onclick="searchPlayer()">Search Player</button>
+
+            <button onclick="searchPlayer()">
+                Search Player
+            </button>
+
         </div>
 
         <div id="result"></div>
+
     </section>
 
     <section class="section" id="tiers">
+
         <h2>Our Gamemodes</h2>
 
         <div class="cards">
-            <div class="card"><h3>Crystal</h3><p>Crystal PvP rankings</p></div>
-            <div class="card"><h3>UHC</h3><p>UHC rankings</p></div>
-            <div class="card"><h3>Pot</h3><p>Pot PvP rankings</p></div>
-            <div class="card"><h3>NethOP</h3><p>NethOP rankings</p></div>
-            <div class="card"><h3>DiaSMP</h3><p>DiaSMP rankings</p></div>
-            <div class="card"><h3>Sword</h3><p>Sword rankings</p></div>
-            <div class="card"><h3>Axe</h3><p>Axe rankings</p></div>
-            <div class="card"><h3>Mace</h3><p>Mace rankings</p></div>
-            <div class="card"><h3>Spear Mace</h3><p>Spear Mace rankings</p></div>
-            <div class="card"><h3>Cart</h3><p>Cart rankings</p></div>
+
+            <div class="card">
+                <h3>Crystal</h3>
+                <p>Crystal PvP rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>UHC</h3>
+                <p>UHC rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>Pot</h3>
+                <p>Pot PvP rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>NethOP</h3>
+                <p>NethOP rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>DiaSMP</h3>
+                <p>DiaSMP rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>Sword</h3>
+                <p>Sword rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>Axe</h3>
+                <p>Axe rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>Mace</h3>
+                <p>Mace rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>Spear Mace</h3>
+                <p>Spear Mace rankings</p>
+            </div>
+
+            <div class="card">
+                <h3>Cart</h3>
+                <p>Cart rankings</p>
+            </div>
+
         </div>
+
     </section>
+
 </main>
 
 <footer>
@@ -180,36 +262,48 @@
 </footer>
 
 <script>
-    function openProfile() {
-        const username = document.getElementById("username").value.trim();
+
+    // Open the previously verified player's profile
+    function openMyProfile() {
+
+        const username = localStorage.getItem("viptiers_username");
 
         if (!username) {
-            document.getElementById("result").textContent =
-                "Enter a Minecraft username first.";
-            document.getElementById("username").focus();
-            return;
-        }
-
-        searchPlayer();
-    }
-
-    function searchPlayer() {
-        const username = document.getElementById("username").value.trim();
-        const result = document.getElementById("result");
-
-        if (!username) {
-            result.textContent = "Please enter a Minecraft username.";
-            return;
-        }
-
-        if (!/^[A-Za-z0-9_]{1,16}$/.test(username)) {
-            result.textContent = "Please enter a valid Minecraft username.";
+            alert("Please verify your Minecraft account first!");
+            window.location.href = "verify.html";
             return;
         }
 
         window.location.href =
             "player.html?username=" + encodeURIComponent(username);
     }
+
+
+    // Search for any Minecraft player
+    function searchPlayer() {
+
+        const username =
+            document.getElementById("username").value.trim();
+
+        const result =
+            document.getElementById("result");
+
+        if (!username) {
+            result.textContent =
+                "Please enter a Minecraft username.";
+            return;
+        }
+
+        if (!/^[A-Za-z0-9_]{1,16}$/.test(username)) {
+            result.textContent =
+                "Please enter a valid Minecraft username.";
+            return;
+        }
+
+        window.location.href =
+            "player.html?username=" + encodeURIComponent(username);
+    }
+
 </script>
 
 </body>
