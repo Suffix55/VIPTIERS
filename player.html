@@ -14,360 +14,434 @@
         body {
             margin: 0;
             padding: 30px 16px;
+            min-height: 100vh;
             background: #090912;
             color: white;
             font-family: Arial, sans-serif;
         }
 
         .container {
-            max-width: 950px;
-            margin: 40px auto;
+            width: 100%;
+            max-width: 1050px;
+            margin: auto;
         }
 
-        .profile {
-            padding: 30px;
-            background: #151522;
-            border: 1px solid #49376b;
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 35px;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 25px;
+            font-weight: 900;
+            color: #c084fc;
+            letter-spacing: 1px;
+        }
+
+        .back {
+            color: #c084fc;
+            text-decoration: none;
+            border: 1px solid #7135a8;
+            padding: 10px 16px;
+            border-radius: 9px;
+            transition: 0.2s;
+        }
+
+        .back:hover {
+            background: #7135a8;
+            color: white;
+        }
+
+        .profile-card {
+            background: #12121f;
+            border: 1px solid #29223b;
             border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 0 30px #8855d922;
+            padding: 28px;
+            margin-bottom: 25px;
         }
 
-        .skin {
-            width: 120px;
-            height: 120px;
-            object-fit: contain;
-            image-rendering: pixelated;
-            margin-bottom: 10px;
-            border-radius: 10px;
+        .profile-top {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
         }
 
-        h1 {
-            color: #b58aff;
+        .player-icon {
+            width: 85px;
+            height: 85px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, #7135a8, #25143c);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 35px;
+            font-weight: bold;
+            color: white;
         }
 
-        .uuid, .muted {
-            color: #999;
+        .player-info h1 {
+            margin: 0 0 9px;
+            font-size: 29px;
+            overflow-wrap: anywhere;
         }
 
-        .status {
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 20px;
-            background: #29253c;
-            color: #b58aff;
+        .uuid {
+            color: #88889e;
+            font-size: 12px;
+            overflow-wrap: anywhere;
         }
 
         .verified {
-            background: #123522;
-            color: #55e88a;
+            display: inline-block;
+            margin-top: 10px;
+            padding: 6px 11px;
+            border-radius: 20px;
+            background: #123d2a;
+            color: #4ade80;
+            font-size: 12px;
+            font-weight: bold;
         }
 
-        .tiers {
+        .section-title {
+            font-size: 21px;
+            margin: 30px 0 17px;
+        }
+
+        .gamemode-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 14px;
-            margin-top: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .mode-card {
+            background: #12121f;
+            border: 1px solid #29223b;
+            border-radius: 13px;
+            padding: 19px;
+            transition: 0.2s;
+        }
+
+        .mode-card:hover {
+            border-color: #a855f7;
+            transform: translateY(-3px);
+        }
+
+        .mode-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 13px;
         }
 
         .tier {
-            padding: 20px;
-            background: #151522;
-            border: 1px solid #29253c;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .tier h3 {
-            color: #b58aff;
-            margin-top: 0;
-        }
-
-        .tier p {
-            color: #aaa;
-            margin-bottom: 0;
-        }
-
-        .tested {
-            color: #55e88a !important;
-        }
-
-        .not-tested {
-            color: #999 !important;
-        }
-
-        .tier-value {
-            display: block;
-            color: #ffd700;
             font-size: 23px;
+            font-weight: 900;
+            color: #c084fc;
+        }
+
+        .not-ranked {
+            color: #77778d;
+            font-size: 15px;
+        }
+
+        .mode-status {
+            color: #88889e;
+            font-size: 12px;
+            margin-top: 9px;
+        }
+
+        .history-card {
+            background: #12121f;
+            border: 1px solid #29223b;
+            border-radius: 13px;
+            padding: 20px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 0;
+            border-bottom: 1px solid #29223b;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-name {
             font-weight: bold;
-            margin: 12px 0;
         }
 
-        a {
-            color: #b58aff;
+        .history-date {
+            color: #88889e;
+            font-size: 12px;
+            text-align: right;
         }
 
-        @media (max-width: 500px) {
-            .profile {
-                padding: 22px 14px;
+        .loading,
+        .error {
+            text-align: center;
+            padding: 50px 15px;
+            color: #aaa;
+            background: #12121f;
+            border: 1px solid #29223b;
+            border-radius: 15px;
+        }
+
+        .error {
+            color: #fb7185;
+        }
+
+        footer {
+            text-align: center;
+            color: #66667a;
+            font-size: 12px;
+            margin-top: 45px;
+        }
+
+        @media (max-width: 550px) {
+            .profile-card {
+                padding: 20px;
             }
 
-            .container {
-                margin: 15px auto;
+            .player-info h1 {
+                font-size: 23px;
+            }
+
+            .history-item {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .history-date {
+                text-align: left;
             }
         }
     </style>
 </head>
 
 <body>
+<div class="container">
 
-    <main class="container">
+    <header>
+        <div class="logo">VIPTIERS</div>
+        <a class="back" href="index.html">← Home</a>
+    </header>
 
-        <section class="profile">
-
-            <img
-                id="skin"
-                class="skin"
-                src="https://mc-heads.net/avatar/Suffix55/120"
-                alt="Minecraft player face"
-            >
-
-            <h1 id="username">Loading Player...</h1>
-
-            <p class="uuid" id="uuid">Loading UUID...</p>
-
-            <p class="status" id="verification">
-                Checking verification...
-            </p>
-
-            <p class="muted" id="verifiedDate"></p>
-
-            <p class="muted" id="status">
-                Loading profile...
-            </p>
-
-        </section>
-
-        <h2>Gamemode Tiers</h2>
-
-        <section class="tiers" id="tiers"></section>
-
-        <p style="text-align:center;margin-top:35px">
-            <a href="index.html">Back to VIPTIERS</a>
-        </p>
-
+    <main id="profile">
+        <div class="loading">Loading player profile...</div>
     </main>
 
-    <script>
+    <footer>
+        VIPTIERS &copy; 2026 — Minecraft PvP Tierlist
+    </footer>
 
-        const API_URL = "https://viptiers.onrender.com";
+</div>
 
-        const GAMEMODES = [
-            "Crystal",
-            "UHC",
-            "Pot",
-            "NethOP",
-            "DiaSMP",
-            "Sword",
-            "Axe",
-            "Mace",
-            "Spear Mace",
-            "Cart"
-        ];
+<script>
+    const API_URL = "https://viptiers.onrender.com";
 
-        const params = new URLSearchParams(
-            window.location.search
-        );
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get("username");
 
-        const requestedPlayer = params.get("username");
+    const profileElement = document.getElementById("profile");
 
-        const usernameElement =
-            document.getElementById("username");
+    const gamemodes = [
+        "Crystal",
+        "UHC",
+        "Pot",
+        "NethOP",
+        "DiaSMP",
+        "Sword",
+        "Axe",
+        "Mace",
+        "Spear Mace",
+        "Cart"
+    ];
 
-        const uuidElement =
-            document.getElementById("uuid");
+    function formatDate(date) {
+        if (!date) return "Unknown date";
 
-        const verificationElement =
-            document.getElementById("verification");
+        const parsed = new Date(date);
 
-        const dateElement =
-            document.getElementById("verifiedDate");
-
-        const statusElement =
-            document.getElementById("status");
-
-        const skinElement =
-            document.getElementById("skin");
-
-        const tiersElement =
-            document.getElementById("tiers");
-
-
-        function displayTiers(gamemodes) {
-
-            tiersElement.replaceChildren();
-
-            GAMEMODES.forEach(mode => {
-
-                const result = gamemodes?.[mode] || {};
-
-                const tested = result.tested === true;
-
-                const tier = result.tier || "Not ranked";
-
-                const card = document.createElement("div");
-
-                card.className = "tier";
-
-                const heading = document.createElement("h3");
-
-                heading.textContent = mode;
-
-                const tierValue = document.createElement("span");
-
-                tierValue.className = "tier-value";
-
-                tierValue.textContent = tested ? tier : "—";
-
-                const testStatus = document.createElement("p");
-
-                testStatus.className =
-                    tested ? "tested" : "not-tested";
-
-                testStatus.textContent =
-                    tested ? "Tested" : "Not tested";
-
-                card.append(
-                    heading,
-                    tierValue,
-                    testStatus
-                );
-
-                tiersElement.appendChild(card);
-
-            });
-
+        if (isNaN(parsed.getTime())) {
+            return "Unknown date";
         }
 
+        return parsed.toLocaleDateString();
+    }
 
-        async function loadProfile() {
+    function getModeData(gamemodesData, mode) {
+        if (!gamemodesData) return null;
 
-            if (!requestedPlayer) {
-
-                usernameElement.textContent = "Player not found";
-
-                statusElement.textContent =
-                    "No Minecraft username was provided.";
-
-                displayTiers({});
-
-                return;
-
-            }
-
-            usernameElement.textContent = requestedPlayer;
-
-            statusElement.textContent =
-                "Loading player profile...";
-
-            try {
-
-                const response = await fetch(
-                    `${API_URL}/api/verification/player/${encodeURIComponent(requestedPlayer)}`,
-                    {
-                        cache: "no-store"
-                    }
-                );
-
-                const data = await response.json();
-
-                if (!response.ok || !data.success || !data.player) {
-
-                    throw new Error(
-                        data.error || "Verified player not found."
-                    );
-
-                }
-
-                const profile = data.player;
-
-                if (!profile.uuid || !profile.username) {
-
-                    throw new Error(
-                        "Player data is incomplete."
-                    );
-
-                }
-
-                usernameElement.textContent =
-                    profile.username;
-
-                uuidElement.textContent =
-                    "UUID: " + profile.uuid;
-
-                verificationElement.textContent =
-                    "✓ Verified";
-
-                verificationElement.classList.add("verified");
-
-
-                if (profile.verifiedAt) {
-
-                    dateElement.textContent =
-                        "Verified on: " +
-                        new Date(
-                            profile.verifiedAt
-                        ).toLocaleString();
-
-                }
-
-
-                // Load the player's real Minecraft face
-                const skinUUID = profile.uuid.replace(/-/g, "");
-
-                skinElement.onerror = () => {
-
-                    skinElement.onerror = null;
-
-                    statusElement.textContent =
-                        "Could not load Minecraft skin.";
-
-                };
-
-                skinElement.src =
-                    `https://mc-heads.net/avatar/${skinUUID}/120`;
-
-
-                displayTiers(profile.gamemodes || {});
-
-                statusElement.textContent =
-                    "Welcome to VIPTIERS!";
-
-            } catch (error) {
-
-                verificationElement.textContent =
-                    "Not verified";
-
-                verificationElement.classList.remove("verified");
-
-                uuidElement.textContent = "";
-
-                dateElement.textContent = "";
-
-                statusElement.textContent =
-                    error.message;
-
-                displayTiers({});
-
-            }
-
+        if (Array.isArray(gamemodesData)) {
+            return gamemodesData.find(item =>
+                item.name?.toLowerCase() === mode.toLowerCase()
+            ) || null;
         }
 
+        return gamemodesData[mode] ||
+            gamemodesData[mode.toLowerCase()] ||
+            null;
+    }
 
-        loadProfile();
+    function renderProfile(profile) {
+        const playerName = profile.username || username;
+        const uuid = profile.uuid || "Unavailable";
+        const verifiedAt = formatDate(profile.verifiedAt);
 
-    </script>
+        const modes = profile.gamemodes || {};
+
+        const modeCards = gamemodes.map(mode => {
+            const data = getModeData(modes, mode);
+
+            const tested = data?.tested === true;
+            const tier = data?.tier;
+
+            return `
+                <div class="mode-card">
+                    <div class="mode-name">${mode}</div>
+
+                    <div class="${tier ? "tier" : "not-ranked"}">
+                        ${tier || "Not ranked"}
+                    </div>
+
+                    <div class="mode-status">
+                        ${tested ? "Test completed" : "Not tested"}
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        const history = gamemodes
+            .map(mode => {
+                const data = getModeData(modes, mode);
+
+                if (!data || !data.tested) return "";
+
+                return `
+                    <div class="history-item">
+                        <div>
+                            <div class="history-name">${mode}</div>
+                            <div class="mode-status">
+                                ${data.tier || "Test completed"}
+                            </div>
+                        </div>
+
+                        <div class="history-date">
+                            ${formatDate(data.testedAt)}
+                        </div>
+                    </div>
+                `;
+            })
+            .filter(Boolean)
+            .join("");
+
+        profileElement.innerHTML = `
+            <section class="profile-card">
+                <div class="profile-top">
+
+                    <div class="player-icon">
+                        ${escapeHTML(playerName.charAt(0).toUpperCase())}
+                    </div>
+
+                    <div class="player-info">
+                        <h1>${escapeHTML(playerName)}</h1>
+
+                        <div class="uuid">
+                            UUID: ${escapeHTML(uuid)}
+                        </div>
+
+                        <div class="verified">
+                            ✓ VERIFIED PLAYER
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="mode-status">
+                    Verified on: ${verifiedAt}
+                </div>
+            </section>
+
+            <h2 class="section-title">Gamemode Rankings</h2>
+
+            <section class="gamemode-grid">
+                ${modeCards}
+            </section>
+
+            <h2 class="section-title">Test History</h2>
+
+            <section class="history-card">
+                ${
+                    history ||
+                    '<div class="mode-status">No tests completed yet.</div>'
+                }
+            </section>
+        `;
+    }
+
+    function escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[char]);
+    }
+
+    async function loadProfile() {
+        if (!username) {
+            profileElement.innerHTML = `
+                <div class="error">
+                    No Minecraft username provided.
+                </div>
+            `;
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `${API_URL}/api/verification/player/${encodeURIComponent(username)}`
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || result.success === false) {
+                throw new Error(
+                    result.error || "Player profile not found."
+                );
+            }
+
+            const profile =
+                result.data?.player ||
+                result.player ||
+                result.data ||
+                result;
+
+            if (!profile.username) {
+                throw new Error("Invalid player profile data.");
+            }
+
+            renderProfile(profile);
+
+        } catch (error) {
+            profileElement.innerHTML = `
+                <div class="error">
+                    ${escapeHTML(error.message)}
+                </div>
+            `;
+        }
+    }
+
+    loadProfile();
+</script>
 
 </body>
 </html>
