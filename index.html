@@ -12,7 +12,6 @@
         :root {
             --bg: #08060e;
             --panel: #100c1a;
-            --panel2: #171025;
             --purple: #a020f0;
             --bright: #c084fc;
             --border: #302044;
@@ -33,9 +32,8 @@
             background:
                 radial-gradient(ellipse at 50% 0%, #211039 0%, transparent 42%),
                 var(--bg);
-            color: var(--white);
+            color: white;
             font-family: Arial, sans-serif;
-            overflow-x: hidden;
         }
 
         a {
@@ -58,24 +56,23 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(8, 6, 14, 0.92);
+            background: rgba(8, 6, 14, 0.94);
             backdrop-filter: blur(15px);
             border-bottom: 1px solid #281735;
         }
 
         .navbar {
-            min-height: 70px;
+            min-height: 72px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 25px;
+            gap: 20px;
         }
 
         .logo {
             font-size: 25px;
             font-weight: 1000;
             letter-spacing: -1px;
-            white-space: nowrap;
         }
 
         .logo span {
@@ -85,12 +82,12 @@
         nav {
             display: flex;
             align-items: center;
-            gap: 27px;
+            gap: 22px;
         }
 
         nav a {
             color: #b9afc8;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             transition: 0.2s;
         }
@@ -101,15 +98,27 @@
 
         .nav-button {
             background: linear-gradient(135deg, #a020f0, #7200d6);
-            padding: 12px 21px;
+            padding: 12px 18px;
             border-radius: 8px;
             color: white;
-            box-shadow: 0 0 20px #8b00ff35;
+            display: inline-block;
         }
 
         .nav-button:hover {
             color: white;
-            box-shadow: 0 0 25px #a020f080;
+            box-shadow: 0 0 20px #a020f080;
+        }
+
+        #account-nav {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .verified-label {
+            color: #4ade80;
+            font-size: 11px;
+            font-weight: bold;
         }
 
         /* HERO */
@@ -119,7 +128,7 @@
         }
 
         .eyebrow {
-            color: #c084fc;
+            color: var(--bright);
             font-size: 13px;
             font-weight: bold;
             margin-bottom: 15px;
@@ -127,7 +136,7 @@
 
         .eyebrow::before {
             content: "●";
-            color: #a020f0;
+            color: var(--purple);
             margin-right: 9px;
         }
 
@@ -152,13 +161,10 @@
             margin: 17px 0 30px;
         }
 
-        /* HERO GRID */
-
         .hero-grid {
             display: grid;
             grid-template-columns: 1.15fr 0.85fr;
             gap: 22px;
-            align-items: stretch;
         }
 
         .hero-card {
@@ -166,15 +172,7 @@
             padding: 28px;
             border: 1px solid #482466;
             border-radius: 16px;
-            background:
-                linear-gradient(120deg, #241039dd, #100b19f2),
-                repeating-linear-gradient(
-                    45deg,
-                    transparent,
-                    transparent 18px,
-                    #ffffff08 18px,
-                    #ffffff08 36px
-                );
+            background: linear-gradient(120deg, #241039, #100b19);
             position: relative;
             overflow: hidden;
             display: flex;
@@ -226,19 +224,16 @@
             box-shadow: 0 5px 25px #8b00ff45;
             position: relative;
             z-index: 2;
-            transition: 0.2s;
         }
 
         .primary-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 7px 30px #a020f080;
+            filter: brightness(1.2);
         }
 
         .side-card {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            align-items: stretch;
         }
 
         .mini-card {
@@ -274,7 +269,7 @@
             display: inline-block;
             color: #e9c7ff;
             background: #7524a9;
-            padding: 6px 10px;
+            padding: 7px 10px;
             border-radius: 6px;
             font-weight: bold;
             font-size: 12px;
@@ -322,7 +317,6 @@
 
         .search input:focus {
             border-color: var(--purple);
-            box-shadow: 0 0 12px #a020f033;
         }
 
         .search button {
@@ -335,21 +329,31 @@
             cursor: pointer;
         }
 
-        .search button:hover {
-            filter: brightness(1.2);
-        }
-
         #result {
             color: #d8b5ff;
             font-size: 13px;
             margin-top: 14px;
         }
 
+        /* VERIFIED MESSAGE */
+
+        .verified-message {
+            display: none;
+            margin-top: 18px;
+            padding: 14px 17px;
+            border: 1px solid #176b43;
+            background: #0d2419;
+            color: #4ade80;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
         /* COMMUNITY */
 
         .community {
             margin-top: 28px;
-            min-height: 135px;
+            min-height: 145px;
             padding: 27px 32px;
             border-radius: 15px;
             border: 1px solid #47215f;
@@ -375,14 +379,23 @@
             margin: 0;
         }
 
-        .community-icon {
-            font-size: 58px;
-            color: #b76aff;
-            padding-right: 30px;
-            text-shadow: 0 0 35px #a020f080;
+        .discord-button {
+            display: inline-block;
+            padding: 14px 22px;
+            border-radius: 8px;
+            background: #5865F2;
+            color: white;
+            font-weight: bold;
+            white-space: nowrap;
+            transition: 0.2s;
         }
 
-        /* SECTION */
+        .discord-button:hover {
+            background: #7180ff;
+            transform: translateY(-2px);
+        }
+
+        /* SECTIONS */
 
         .section {
             padding: 65px 0 20px;
@@ -402,7 +415,7 @@
         }
 
         .section-heading span {
-            color: #a020f0;
+            color: var(--purple);
         }
 
         .section-heading p {
@@ -429,7 +442,7 @@
 
         .card:hover {
             transform: translateY(-4px);
-            border-color: #a020f0;
+            border-color: var(--purple);
             box-shadow: 0 8px 25px #a020f018;
         }
 
@@ -478,7 +491,7 @@
         .step-number {
             font-size: 27px;
             font-weight: 900;
-            color: #a020f0;
+            color: var(--purple);
             margin-bottom: 13px;
         }
 
@@ -529,8 +542,6 @@
             color: #b77aff;
         }
 
-        /* RESPONSIVE */
-
         @media (max-width: 850px) {
             .cards {
                 grid-template-columns: repeat(3, 1fr);
@@ -541,7 +552,7 @@
             }
 
             nav {
-                gap: 14px;
+                gap: 12px;
             }
         }
 
@@ -555,7 +566,6 @@
             nav {
                 flex-wrap: wrap;
                 justify-content: center;
-                gap: 15px;
             }
 
             nav a {
@@ -566,21 +576,9 @@
                 padding-top: 45px;
             }
 
-            .hero h1 {
-                letter-spacing: -1px;
-            }
-
-            .side-card {
-                grid-template-columns: 1fr 1fr;
-            }
-
             .community {
-                padding: 23px;
-            }
-
-            .community-icon {
-                font-size: 38px;
-                padding: 0;
+                flex-direction: column;
+                align-items: flex-start;
             }
 
             .cards {
@@ -614,21 +612,22 @@
         </a>
 
         <nav>
-            <a href="#home">⌂ Home</a>
-            <a href="#tiers">▥ Rankings</a>
-            <a href="#team">♙ Team</a>
+            <a href="#home">Home</a>
+            <a href="#tiers">Rankings</a>
+            <a href="#team">Team</a>
             <a href="#how">How It Works</a>
-            <a href="verify.html" class="nav-button">Sign In</a>
+            <a href="https://discord.gg/Mj2uPq5Hb" target="_blank" rel="noopener noreferrer">Discord</a>
+
+            <div id="account-nav">
+                <a href="verify.html" class="nav-button">Sign In</a>
+            </div>
         </nav>
 
     </div>
 </header>
 
 <main>
-
     <div class="container">
-
-        <!-- HERO -->
 
         <section class="hero" id="home">
 
@@ -647,10 +646,7 @@
             <div class="hero-grid">
 
                 <div class="hero-card">
-
-                    <h2>
-                        Join the VIPTIERS competitive network.
-                    </h2>
+                    <h2>Join the VIPTIERS competitive network.</h2>
 
                     <p>
                         Verify your Minecraft account, request a tier test
@@ -660,7 +656,6 @@
                     <a href="verify.html" class="primary-button">
                         Get Started →
                     </a>
-
                 </div>
 
                 <div class="side-card">
@@ -676,16 +671,17 @@
                         <div class="mini-label">HOW TO START</div>
                         <h3>GET<br>TESTED</h3>
                         <p>Verify your account and get ready for testing.</p>
-                        <a href="verify.html" class="mini-tier">
-                            Start →
-                        </a>
+                        <a href="verify.html" class="mini-tier">Start →</a>
                     </div>
 
                 </div>
 
             </div>
 
-            <!-- PLAYER SEARCH -->
+            <div class="verified-message" id="verified-message">
+                ✓ Your Minecraft account has been verified!
+                Welcome to VIPTIERS.
+            </div>
 
             <div class="search-card">
 
@@ -718,12 +714,10 @@
 
         </section>
 
-        <!-- COMMUNITY -->
-
         <section class="community">
 
             <div>
-                <h2>Join the Community</h2>
+                <h2>Join the VIPTIERS Community</h2>
 
                 <p>
                     Meet competitive Minecraft players, get tier tested
@@ -731,11 +725,16 @@
                 </p>
             </div>
 
-            <div class="community-icon">✦</div>
+            <a
+                href="https://discord.gg/Mj2uPq5Hb"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="discord-button"
+            >
+                Join Discord →
+            </a>
 
         </section>
-
-        <!-- GAMEMODES -->
 
         <section class="section" id="tiers">
 
@@ -810,8 +809,6 @@
 
         </section>
 
-        <!-- HOW IT WORKS -->
-
         <section class="section" id="how">
 
             <div class="section-heading">
@@ -851,8 +848,6 @@
 
         </section>
 
-        <!-- TEAM -->
-
         <section class="section" id="team">
 
             <div class="team-box">
@@ -864,15 +859,17 @@
                     follow their tier progress through their profiles.
                 </p>
 
-                <a href="verify.html" class="primary-button">
-                    Join VIPTIERS →
+                <a href="https://discord.gg/Mj2uPq5Hb"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="primary-button">
+                    Join Our Discord →
                 </a>
             </div>
 
         </section>
 
     </div>
-
 </main>
 
 <footer>
@@ -880,15 +877,91 @@
 </footer>
 
 <script>
+    const API_URL = "https://viptiers.onrender.com";
+
+    // Check whether the saved player is verified
+    async function updateAccountNav() {
+
+        const nav = document.getElementById("account-nav");
+        const message = document.getElementById("verified-message");
+
+        const username = localStorage.getItem("viptiers_username");
+
+        // No saved username: show Sign In
+        if (!username) {
+            nav.innerHTML = `
+                <a href="verify.html" class="nav-button">Sign In</a>
+            `;
+            return;
+        }
+
+        try {
+
+            const response = await fetch(
+                `${API_URL}/api/verification/player/${encodeURIComponent(username)}`
+            );
+
+            if (!response.ok) {
+                throw new Error("Player not found");
+            }
+
+            const result = await response.json();
+
+            if (result.success === false) {
+                throw new Error("Player not verified");
+            }
+
+            // Backend confirmed the player
+            const player =
+                result.data?.player ||
+                result.player ||
+                result.data ||
+                result;
+
+            if (
+                !player.username ||
+                player.username.toLowerCase() !== username.toLowerCase()
+            ) {
+                throw new Error("Verification could not be confirmed");
+            }
+
+            // Replace Sign In with My Profile
+            nav.innerHTML = "";
+
+            const profileLink = document.createElement("a");
+            profileLink.href =
+                "player.html?username=" + encodeURIComponent(player.username);
+            profileLink.className = "nav-button";
+            profileLink.textContent = "My Profile ✓";
+
+            const verifiedLabel = document.createElement("span");
+            verifiedLabel.className = "verified-label";
+            verifiedLabel.textContent = "VERIFIED";
+
+            nav.appendChild(profileLink);
+            nav.appendChild(verifiedLabel);
+
+            message.style.display = "block";
+
+        } catch (error) {
+
+            // Don't show a verified status if the backend cannot confirm it.
+            // Keep the saved username so it can be checked again later.
+            nav.innerHTML = `
+                <a href="verify.html" class="nav-button">Sign In</a>
+            `;
+
+            console.log("Verification check unavailable:", error);
+        }
+    }
+
 
     // Open the previously verified player's profile
-
     function openMyProfile() {
 
         const username = localStorage.getItem("viptiers_username");
 
         if (!username) {
-            alert("Please verify your Minecraft account first!");
             window.location.href = "verify.html";
             return;
         }
@@ -898,8 +971,7 @@
     }
 
 
-    // Search for a Minecraft player
-
+    // Search for any Minecraft player
     function searchPlayer() {
 
         const username =
@@ -923,6 +995,9 @@
         window.location.href =
             "player.html?username=" + encodeURIComponent(username);
     }
+
+    // Run when the homepage opens
+    updateAccountNav();
 
 </script>
 
