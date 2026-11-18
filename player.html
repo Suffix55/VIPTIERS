@@ -232,15 +232,12 @@
                         new Date(profile.verifiedAt).toLocaleString();
                 }
 
-              // Load the player's real Minecraft face
-skinElement.src =
-    `https://mc-heads.net/avatar/${encodeURIComponent(profile.uuid)}/120`;
+             // Load the official Minecraft player face
+const skinUUID = profile.uuid.replace(/-/g, "");
 
-skinElement.onerror = () => {
-    skinElement.onerror = null;
-    skinElement.src =
-        `https://crafatar.com/avatars/${encodeURIComponent(profile.uuid)}?size=120&overlay`;
-};
+skinElement.onerror = null;
+skinElement.src =
+    `https://mc-heads.net/avatar/${skinUUID}/120`;
                 skinElement.src =
                     `https://mc-heads.net/body/${encodeURIComponent(profile.uuid)}/160`;
 
