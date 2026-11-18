@@ -98,6 +98,7 @@
 </head>
 
 <body>
+
     <main class="panel">
         <h1>VIPTIERS</h1>
         <h2>Minecraft Account Verification</h2>
@@ -203,7 +204,9 @@
                 }
 
                 if (!data.code) {
-                    throw new Error("The server did not return a code.");
+                    throw new Error(
+                        "The server did not return a code."
+                    );
                 }
 
                 currentUsername = username;
@@ -232,6 +235,7 @@
             } catch (error) {
                 message.textContent = error.message;
                 message.className = "error";
+
             } finally {
                 button.disabled = false;
                 button.textContent = "Get Verification Code";
@@ -276,16 +280,19 @@
 
                         clearTimeout(pollTimer);
 
-                       // Remember the verified Minecraft username
-localStorage.setItem("viptiers_username", player.username);
+                        // Save verified username for the homepage
+                        localStorage.setItem(
+                            "viptiers_username",
+                            player.username
+                        );
 
-// Redirect to the player's profile
-const profileParams = new URLSearchParams({
-    username: player.username
-});
+                        // Redirect to the player's profile
+                        const profileParams = new URLSearchParams({
+                            username: player.username
+                        });
 
-window.location.href =
-    `${PROFILE_URL}?${profileParams.toString()}`;
+                        window.location.href =
+                            `${PROFILE_URL}?${profileParams.toString()}`;
 
                         return;
                     }
@@ -320,5 +327,6 @@ window.location.href =
             }
         }
     </script>
+
 </body>
 </html>
