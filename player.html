@@ -32,8 +32,8 @@
         }
 
         .skin {
-            width: 120px;
-            height: 120px;
+            width: 160px;
+            height: 220px;
             object-fit: contain;
             image-rendering: pixelated;
             margin-bottom: 10px;
@@ -108,7 +108,7 @@
             <img
                 id="skin"
                 class="skin"
-                src="https://mc-heads.net/avatar/Steve/120"
+                src="https://mc-heads.net/body/Steve/160"
                 alt="Minecraft player skin"
             >
 
@@ -126,8 +126,7 @@
 
         <h2>Gamemode Tiers</h2>
 
-        <section class="tiers" id="tiers">
-        </section>
+        <section class="tiers" id="tiers"></section>
 
         <p style="text-align:center;margin-top:35px">
             <a href="index.html">Back to VIPTIERS</a>
@@ -233,13 +232,14 @@
                         new Date(profile.verifiedAt).toLocaleString();
                 }
 
-                // Minecraft skin and head
+                // Load the player's actual Minecraft skin
                 skinElement.src =
-                    `https://mc-heads.net/avatar/${encodeURIComponent(profile.uuid)}/120`;
+                    `https://mc-heads.net/body/${encodeURIComponent(profile.uuid)}/160`;
 
                 skinElement.onerror = () => {
+                    skinElement.onerror = null;
                     skinElement.src =
-                        "https://mc-heads.net/avatar/Steve/120";
+                        "https://mc-heads.net/body/Steve/160";
                 };
 
                 displayTiers(profile.gamemodes || {});
@@ -255,7 +255,7 @@
                 dateElement.textContent = "";
 
                 skinElement.src =
-                    "https://mc-heads.net/avatar/Steve/120";
+                    "https://mc-heads.net/body/Steve/160";
 
                 statusElement.textContent = error.message;
 
