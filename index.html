@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VIPTIERS | Minecraft PvP Tierlist</title>
     <meta name="description" content="VIPTIERS Minecraft PvP rankings, player profiles and tier testing.">
+
     <style>
         * { box-sizing: border-box; }
 
@@ -109,7 +110,6 @@
         }
 
         .card h3 { color: #b58aff; }
-
         .card p { color: #aaa; }
 
         #result {
@@ -125,16 +125,18 @@
         }
     </style>
 </head>
+
 <body>
 
 <header>
     <div class="logo">VIPTIERS</div>
+
     <nav>
-    <a href="#home">Home</a>
-    <a href="#tiers">Tierlist</a>
-    <a href="#profiles">Profiles</a>
-    <a href="verify.html">Verify Account</a>  
-</nav>
+        <a href="#home">Home</a>
+        <a href="#tiers">Tierlist</a>
+        <a href="#" onclick="openProfile(); return false;">Profiles</a>
+        <a href="verify.html">Verify Account</a>
+    </nav>
 </header>
 
 <main>
@@ -143,7 +145,12 @@
         <p>The Minecraft PvP competitive tiering network.</p>
 
         <div class="search" id="profiles">
-            <input id="username" placeholder="Enter Minecraft username">
+            <input
+                id="username"
+                placeholder="Enter Minecraft username"
+                maxlength="16"
+                onkeydown="if(event.key === 'Enter') searchPlayer()"
+            >
             <button onclick="searchPlayer()">Search Player</button>
         </div>
 
@@ -152,6 +159,7 @@
 
     <section class="section" id="tiers">
         <h2>Our Gamemodes</h2>
+
         <div class="cards">
             <div class="card"><h3>Crystal</h3><p>Crystal PvP rankings</p></div>
             <div class="card"><h3>UHC</h3><p>UHC rankings</p></div>
@@ -172,6 +180,19 @@
 </footer>
 
 <script>
+    function openProfile() {
+        const username = document.getElementById("username").value.trim();
+
+        if (!username) {
+            document.getElementById("result").textContent =
+                "Enter a Minecraft username first.";
+            document.getElementById("username").focus();
+            return;
+        }
+
+        searchPlayer();
+    }
+
     function searchPlayer() {
         const username = document.getElementById("username").value.trim();
         const result = document.getElementById("result");
@@ -181,7 +202,13 @@
             return;
         }
 
-        window.location.href = "player.html?username=" + encodeURIComponent(username);
+        if (!/^[A-Za-z0-9_]{1,16}$/.test(username)) {
+            result.textContent = "Please enter a valid Minecraft username.";
+            return;
+        }
+
+        window.location.href =
+            "player.html?username=" + encodeURIComponent(username);
     }
 </script>
 
