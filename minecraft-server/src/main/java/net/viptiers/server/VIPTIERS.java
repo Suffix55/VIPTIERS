@@ -395,7 +395,7 @@ public final class VIPTIERS extends JavaPlugin
             ItemStack item = new ItemStack(GAMEMODE_ITEMS[i]);
             ItemMeta meta = item.getItemMeta();
 
-            meta.setDisplayName(ChatColor.LIGHT_PURPLE
+            meta.setDisplayName(ChatColor.LIGHT_PURPLE.toString()
                     + ChatColor.BOLD + GAMEMODES[i]);
 
             meta.setLore(List.of(
@@ -442,7 +442,7 @@ public final class VIPTIERS extends JavaPlugin
             ItemStack item = new ItemStack(regionItems[i]);
             ItemMeta meta = item.getItemMeta();
 
-            meta.setDisplayName(ChatColor.AQUA
+            meta.setDisplayName(ChatColor.AQUA.toString()
                     + ChatColor.BOLD + REGIONS[i]);
 
             meta.setLore(List.of(
