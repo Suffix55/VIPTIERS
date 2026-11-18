@@ -27,6 +27,19 @@ const GAMEMODES = [
     "Cart"
 ];
 
+const TIERS = [
+    "HT1",
+    "LT1",
+    "HT2",
+    "LT2",
+    "HT3",
+    "LT3",
+    "HT4",
+    "LT4",
+    "HT5",
+    "LT5"
+];
+
 app.use((req, res, next) => {
     const origin = req.headers.origin;
 
@@ -55,6 +68,7 @@ function authenticate(req, res, next) {
 
     if (!API_SECRET || supplied !== `Bearer ${API_SECRET}`) {
         return res.status(401).json({
+            success: false,
             error: "Unauthorized"
         });
     }
@@ -91,7 +105,8 @@ function createGamemodes() {
         result[mode] = {
             tested: false,
             tier: null,
-            testedAt: null
+            testedAt: null,
+            history: []
         };
     }
 
@@ -110,6 +125,42 @@ function findPlayerByUsername(username) {
     return null;
 }
 
+function getLeaderboard(gamemode = null) {
+    const players = [];
+
+    for (const [uuid, player] of verifiedPlayers) {
+        for (const mode of GAMEMODES) {
+            if (gamemode && mode !== gamemode) continue;
+
+            const data = player.gamemodes[mode];
+
+            if (!data || !data.tested || !data.tier) continue;
+
+            players.push({
+                uuid,
+                username: player.username,
+                tier: data.tier,
+                gamemode: mode,
+                testedAt: data.testedAt
+            });
+        }
+    }
+
+    players.sort((a, b) => {
+        const tierDifference =
+            TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier);
+
+        if (tierDifference !== 0) return tierDifference;
+
+        return a.username.localeCompare(b.username);
+    });
+
+    return players.map((player, index) => ({
+        position: index + 1,
+        ...player
+    }));
+}
+
 // Health check
 app.get("/", (req, res) => {
     res.json({
@@ -118,7 +169,7 @@ app.get("/", (req, res) => {
     });
 });
 
-// Website requests a verification code
+// Start verification
 app.post("/api/verification/start", (req, res) => {
     cleanExpiredCodes();
 
@@ -126,6 +177,7 @@ app.post("/api/verification/start", (req, res) => {
 
     if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
         return res.status(400).json({
+            success: false,
             error: "Invalid Minecraft username"
         });
     }
@@ -135,6 +187,7 @@ app.post("/api/verification/start", (req, res) => {
 
     if (lastRequest && Date.now() - lastRequest < 30000) {
         return res.status(429).json({
+            success: false,
             error: "Please wait 30 seconds before requesting another code"
         });
     }
@@ -156,23 +209,27 @@ app.post("/api/verification/start", (req, res) => {
     });
 });
 
-// Minecraft plugin completes verification
+// Complete Minecraft verification
 app.post(
     "/api/verification/complete",
     authenticate,
     (req, res) => {
         cleanExpiredCodes();
 
-        const uuid = String(req.body.uuid || "");
+        const uuid = String(req.body.uuid || "")
+            .replace(/-/g, "")
+            .toLowerCase();
+
         const username = String(req.body.username || "").trim();
         const code = String(req.body.code || "");
 
         if (
-            !/^[a-f0-9-]{36}$/i.test(uuid) ||
+            !/^[a-f0-9]{32}$/.test(uuid) ||
             !/^[a-zA-Z0-9_]{3,16}$/.test(username) ||
             !/^\d{6}$/.test(code)
         ) {
             return res.status(400).json({
+                success: false,
                 error: "Invalid verification details"
             });
         }
@@ -184,16 +241,19 @@ app.post(
             entry.username.toLowerCase() !== username.toLowerCase()
         ) {
             return res.status(400).json({
+                success: false,
                 error: "Incorrect code or Minecraft username"
             });
         }
 
         pendingCodes.delete(code);
 
+        const existing = verifiedPlayers.get(uuid);
+
         verifiedPlayers.set(uuid, {
             username,
-            verifiedAt: Date.now(),
-            gamemodes: createGamemodes()
+            verifiedAt: existing?.verifiedAt || Date.now(),
+            gamemodes: existing?.gamemodes || createGamemodes()
         });
 
         res.json({
@@ -204,29 +264,31 @@ app.post(
     }
 );
 
-// Plugin checks verification status
+// Check verification status
 app.get(
     "/api/verification/status/:uuid",
     authenticate,
     (req, res) => {
-        const player = verifiedPlayers.get(req.params.uuid);
+        const uuid = req.params.uuid.replace(/-/g, "").toLowerCase();
+        const player = verifiedPlayers.get(uuid);
 
         if (!player) {
             return res.status(404).json({
+                verified: false,
                 error: "Player not verified"
             });
         }
 
         res.json({
             verified: true,
-            uuid: req.params.uuid,
+            uuid,
             username: player.username,
             verifiedAt: player.verifiedAt
         });
     }
 );
 
-// Admin: get all verified players
+// Get all verified players
 app.get(
     "/api/verification/players",
     authenticate,
@@ -246,13 +308,11 @@ app.get(
     }
 );
 
-// PUBLIC: website loads one player's profile
-// This endpoint intentionally does NOT require the API secret.
+// Public player profile
 app.get("/api/verification/player/:username", (req, res) => {
     res.setHeader("Cache-Control", "no-store");
 
-    const username = req.params.username;
-    const player = findPlayerByUsername(username);
+    const player = findPlayerByUsername(req.params.username);
 
     if (!player) {
         return res.status(404).json({
@@ -267,16 +327,16 @@ app.get("/api/verification/player/:username", (req, res) => {
     });
 });
 
-// Admin: revoke a player's verification
+// Revoke verification
 app.delete(
     "/api/verification/player/:username",
     authenticate,
     (req, res) => {
-        const username = req.params.username;
-        const player = findPlayerByUsername(username);
+        const player = findPlayerByUsername(req.params.username);
 
         if (!player) {
             return res.status(404).json({
+                success: false,
                 error: "Verified player not found"
             });
         }
@@ -290,8 +350,107 @@ app.delete(
     }
 );
 
+// Assign a tier to a player
+app.post(
+    "/api/tiers/assign",
+    authenticate,
+    (req, res) => {
+        const username = String(req.body.username || "").trim();
+        const gamemode = String(req.body.gamemode || "").trim();
+        const tier = String(req.body.tier || "").toUpperCase().trim();
+
+        if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid username"
+            });
+        }
+
+        if (!GAMEMODES.includes(gamemode)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid gamemode"
+            });
+        }
+
+        if (!TIERS.includes(tier)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid tier"
+            });
+        }
+
+        const player = findPlayerByUsername(username);
+
+        if (!player) {
+            return res.status(404).json({
+                success: false,
+                error: "Player is not verified"
+            });
+        }
+
+        const playerData = verifiedPlayers.get(player.uuid);
+        const modeData = playerData.gamemodes[gamemode];
+
+        modeData.tested = true;
+        modeData.tier = tier;
+        modeData.testedAt = Date.now();
+
+        modeData.history.push({
+            tier,
+            testedAt: modeData.testedAt
+        });
+
+        res.json({
+            success: true,
+            message: `${player.username} received ${tier} in ${gamemode}`,
+            player: {
+                username: player.username,
+                uuid: player.uuid,
+                gamemode,
+                tier,
+                testedAt: modeData.testedAt
+            }
+        });
+    }
+);
+
+// Public high tiers leaderboard
+app.get("/api/tiers/leaderboard", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+
+    const gamemode = req.query.gamemode
+        ? String(req.query.gamemode)
+        : null;
+
+    if (gamemode && !GAMEMODES.includes(gamemode)) {
+        return res.status(400).json({
+            success: false,
+            error: "Invalid gamemode",
+            gamemodes: GAMEMODES
+        });
+    }
+
+    const players = getLeaderboard(gamemode);
+
+    res.json({
+        success: true,
+        count: players.length,
+        gamemode: gamemode || "All",
+        tiers: TIERS,
+        players
+    });
+});
+
+// Public list of supported gamemodes and tiers
+app.get("/api/tiers/info", (req, res) => {
+    res.json({
+        success: true,
+        gamemodes: GAMEMODES,
+        tiers: TIERS
+    });
+});
+
 app.listen(PORT, () => {
-    console.log(
-        `VIPTIERS backend running on port ${PORT}`
-    );
+    console.log(`VIPTIERS backend running on port ${PORT}`);
 });
