@@ -16,19 +16,23 @@
     --border:#302044;
     --muted:#aaa0bb;
 }
+
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
+
 body{
     margin:0;
     background:radial-gradient(ellipse at 50% 0%,#211039 0%,transparent 42%),var(--bg);
     color:white;
     font-family:Arial,sans-serif;
 }
+
 a{color:inherit;text-decoration:none}
 button,input{font:inherit}
 .container{width:min(1120px,92%);margin:auto}
 
 /* NAVBAR */
+
 header{
     position:sticky;
     top:0;
@@ -37,6 +41,7 @@ header{
     backdrop-filter:blur(15px);
     border-bottom:1px solid #281735;
 }
+
 .navbar{
     min-height:72px;
     display:flex;
@@ -44,20 +49,30 @@ header{
     justify-content:space-between;
     gap:20px;
 }
+
 .logo{
     font-size:25px;
     font-weight:1000;
     letter-spacing:-1px;
 }
+
 .logo span{color:var(--purple)}
-nav{display:flex;align-items:center;gap:22px}
+
+nav{
+    display:flex;
+    align-items:center;
+    gap:22px;
+}
+
 nav a{
     color:#b9afc8;
     font-size:13px;
     font-weight:bold;
     transition:.2s;
 }
+
 nav a:hover{color:var(--bright)}
+
 .nav-button{
     background:linear-gradient(135deg,#a020f0,#7200d6);
     padding:12px 18px;
@@ -65,19 +80,41 @@ nav a:hover{color:var(--bright)}
     color:white;
     display:inline-block;
 }
-.nav-button:hover{color:white;box-shadow:0 0 20px #a020f080}
-#account-nav{display:flex;align-items:center;gap:9px}
-.verified-label{color:#4ade80;font-size:11px;font-weight:bold}
+
+.nav-button:hover{
+    color:white;
+    box-shadow:0 0 20px #a020f080;
+}
+
+#account-nav{
+    display:flex;
+    align-items:center;
+    gap:9px;
+}
+
+.verified-label{
+    color:#4ade80;
+    font-size:11px;
+    font-weight:bold;
+}
 
 /* HERO */
+
 .hero{padding:65px 0 50px}
+
 .eyebrow{
     color:var(--bright);
     font-size:13px;
     font-weight:bold;
     margin-bottom:15px;
 }
-.eyebrow::before{content:"●";color:var(--purple);margin-right:9px}
+
+.eyebrow::before{
+    content:"●";
+    color:var(--purple);
+    margin-right:9px;
+}
+
 .hero h1{
     font-size:clamp(42px,7vw,70px);
     line-height:1.02;
@@ -85,7 +122,12 @@ nav a:hover{color:var(--bright)}
     font-weight:1000;
     letter-spacing:-2px;
 }
-.hero h1 span{color:var(--purple);font-style:italic}
+
+.hero h1 span{
+    color:var(--purple);
+    font-style:italic;
+}
+
 .hero-description{
     color:var(--muted);
     max-width:510px;
@@ -93,11 +135,13 @@ nav a:hover{color:var(--bright)}
     font-size:16px;
     margin:17px 0 30px;
 }
+
 .hero-grid{
     display:grid;
     grid-template-columns:1.15fr .85fr;
     gap:22px;
 }
+
 .hero-card{
     min-height:230px;
     padding:28px;
@@ -110,6 +154,7 @@ nav a:hover{color:var(--bright)}
     flex-direction:column;
     justify-content:center;
 }
+
 .hero-card::after{
     content:"";
     position:absolute;
@@ -121,6 +166,7 @@ nav a:hover{color:var(--bright)}
     right:-80px;
     bottom:-110px;
 }
+
 .hero-card h2{
     max-width:370px;
     font-size:24px;
@@ -129,6 +175,7 @@ nav a:hover{color:var(--bright)}
     position:relative;
     z-index:1;
 }
+
 .hero-card p{
     color:#bdb1ca;
     max-width:360px;
@@ -137,6 +184,7 @@ nav a:hover{color:var(--bright)}
     position:relative;
     z-index:1;
 }
+
 .primary-button{
     display:inline-block;
     width:fit-content;
@@ -152,8 +200,15 @@ nav a:hover{color:var(--bright)}
     position:relative;
     z-index:2;
 }
+
 .primary-button:hover{filter:brightness(1.2)}
-.side-card{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.side-card{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+}
+
 .mini-card{
     background:linear-gradient(145deg,#191126,#0f0b17);
     border:1px solid var(--border);
@@ -163,14 +218,26 @@ nav a:hover{color:var(--bright)}
     flex-direction:column;
     justify-content:center;
 }
+
 .mini-label{
     color:#a99ab9;
     font-size:10px;
     font-weight:bold;
     letter-spacing:1.2px;
 }
-.mini-card h3{font-size:22px;line-height:1.2;margin:12px 0}
-.mini-card p{color:#a99ab9;font-size:12px;line-height:1.5}
+
+.mini-card h3{
+    font-size:22px;
+    line-height:1.2;
+    margin:12px 0;
+}
+
+.mini-card p{
+    color:#a99ab9;
+    font-size:12px;
+    line-height:1.5;
+}
+
 .mini-tier{
     display:inline-block;
     color:#e9c7ff;
@@ -184,6 +251,7 @@ nav a:hover{color:var(--bright)}
 }
 
 /* SEARCH */
+
 .search-card{
     margin-top:24px;
     padding:25px;
@@ -191,9 +259,24 @@ nav a:hover{color:var(--bright)}
     background:#100c1a;
     border:1px solid var(--border);
 }
-.search-card h2{margin:0 0 8px;font-size:20px}
-.search-card p{color:var(--muted);font-size:13px;margin-bottom:17px}
-.search{display:flex;gap:10px;flex-wrap:wrap}
+
+.search-card h2{
+    margin:0 0 8px;
+    font-size:20px;
+}
+
+.search-card p{
+    color:var(--muted);
+    font-size:13px;
+    margin-bottom:17px;
+}
+
+.search{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
 .search input{
     flex:1;
     min-width:190px;
@@ -204,7 +287,9 @@ nav a:hover{color:var(--bright)}
     color:white;
     outline:none;
 }
+
 .search input:focus{border-color:var(--purple)}
+
 .search button{
     border:0;
     padding:14px 22px;
@@ -214,9 +299,15 @@ nav a:hover{color:var(--bright)}
     font-weight:bold;
     cursor:pointer;
 }
-#result{color:#d8b5ff;font-size:13px;margin-top:14px}
+
+#result{
+    color:#d8b5ff;
+    font-size:13px;
+    margin-top:14px;
+}
 
 /* VERIFIED MESSAGE */
+
 .verified-message{
     display:none;
     margin-top:18px;
@@ -230,6 +321,7 @@ nav a:hover{color:var(--bright)}
 }
 
 /* LIVE RESULTS + TESTING GUIDE */
+
 .live-section{
     display:grid;
     grid-template-columns:1.08fr .92fr;
@@ -237,6 +329,7 @@ nav a:hover{color:var(--bright)}
     margin:8px 0 22px;
     align-items:stretch;
 }
+
 .live-panel,.testing-panel{
     min-width:0;
     border:1px solid var(--border);
@@ -244,7 +337,9 @@ nav a:hover{color:var(--bright)}
     background:linear-gradient(145deg,#151020,#0d0a14);
     overflow:hidden;
 }
+
 .live-panel{padding:20px}
+
 .live-heading,.testing-heading{
     display:flex;
     align-items:center;
@@ -252,7 +347,12 @@ nav a:hover{color:var(--bright)}
     gap:12px;
     margin-bottom:16px;
 }
-.live-heading h2,.testing-heading h2{margin:0;font-size:17px}
+
+.live-heading h2,.testing-heading h2{
+    margin:0;
+    font-size:17px;
+}
+
 .live-dot{
     display:inline-block;
     width:8px;
@@ -263,8 +363,18 @@ nav a:hover{color:var(--bright)}
     box-shadow:0 0 10px #4ade80;
     vertical-align:2px;
 }
-.live-view-all{color:var(--bright);font-size:12px;font-weight:bold}
-.live-list{display:grid;gap:8px}
+
+.live-view-all{
+    color:var(--bright);
+    font-size:12px;
+    font-weight:bold;
+}
+
+.live-list{
+    display:grid;
+    gap:8px;
+}
+
 .live-row{
     display:grid;
     grid-template-columns:25px minmax(0,1fr) auto;
@@ -276,12 +386,14 @@ nav a:hover{color:var(--bright)}
     background:#0b0912;
     border:1px solid #21182d;
 }
+
 .live-rank{
     color:#8d829b;
     font-size:12px;
     font-weight:800;
     text-align:center;
 }
+
 .live-player-name{
     display:block;
     color:#fff;
@@ -291,12 +403,14 @@ nav a:hover{color:var(--bright)}
     text-overflow:ellipsis;
     white-space:nowrap;
 }
+
 .live-player-meta{
     display:block;
     margin-top:4px;
     color:#8f849e;
     font-size:11px;
 }
+
 .live-tier{
     display:inline-block;
     padding:6px 9px;
@@ -308,6 +422,7 @@ nav a:hover{color:var(--bright)}
     font-weight:900;
     white-space:nowrap;
 }
+
 .live-state{
     padding:25px 10px;
     color:#94899f;
@@ -315,8 +430,17 @@ nav a:hover{color:var(--bright)}
     text-align:center;
     line-height:1.6;
 }
-.testing-panel{display:flex;flex-direction:column}
-.testing-heading{padding:20px 20px 0;margin-bottom:14px}
+
+.testing-panel{
+    display:flex;
+    flex-direction:column;
+}
+
+.testing-heading{
+    padding:20px 20px 0;
+    margin-bottom:14px;
+}
+
 .carousel-window{
     position:relative;
     flex:1;
@@ -332,12 +456,22 @@ nav a:hover{color:var(--bright)}
     display:flex;
     align-items:center;
 }
-.testing-slide{display:none;width:100%}
-.testing-slide.active{display:block;animation:slideFade .25s ease}
+
+.testing-slide{
+    display:none;
+    width:100%;
+}
+
+.testing-slide.active{
+    display:block;
+    animation:slideFade .25s ease;
+}
+
 @keyframes slideFade{
     from{opacity:.35;transform:translateY(5px)}
     to{opacity:1;transform:translateY(0)}
 }
+
 .slide-step{
     color:#a98acb;
     font-size:10px;
@@ -345,13 +479,19 @@ nav a:hover{color:var(--bright)}
     letter-spacing:1.5px;
     text-transform:uppercase;
 }
-.testing-slide h3{margin:10px 0 8px;font-size:21px}
+
+.testing-slide h3{
+    margin:10px 0 8px;
+    font-size:21px;
+}
+
 .testing-slide p{
     margin:0;
     color:#aaa0bb;
     font-size:13px;
     line-height:1.6;
 }
+
 .slide-link{
     display:inline-block;
     margin-top:15px;
@@ -362,13 +502,16 @@ nav a:hover{color:var(--bright)}
     font-size:12px;
     font-weight:800;
 }
+
 .carousel-controls{
     display:flex;
     align-items:center;
     justify-content:space-between;
     padding:13px 20px 17px;
 }
+
 .carousel-arrows{display:flex;gap:7px}
+
 .carousel-arrows button{
     width:29px;
     height:29px;
@@ -379,8 +522,11 @@ nav a:hover{color:var(--bright)}
     cursor:pointer;
     font-size:16px;
 }
+
 .carousel-arrows button:hover{border-color:var(--purple)}
+
 .carousel-dots{display:flex;gap:6px}
+
 .carousel-dot{
     width:25px;
     height:4px;
@@ -389,9 +535,11 @@ nav a:hover{color:var(--bright)}
     background:#382b45;
     cursor:pointer;
 }
+
 .carousel-dot.active{background:#c084fc}
 
 /* COMMUNITY */
+
 .community{
     margin-top:28px;
     min-height:145px;
@@ -404,7 +552,12 @@ nav a:hover{color:var(--bright)}
     align-items:center;
     gap:20px;
 }
-.community h2{margin:0 0 10px;font-size:22px}
+
+.community h2{
+    margin:0 0 10px;
+    font-size:22px;
+}
+
 .community p{
     color:var(--muted);
     font-size:14px;
@@ -412,6 +565,7 @@ nav a:hover{color:var(--bright)}
     max-width:480px;
     margin:0;
 }
+
 .discord-button{
     display:inline-block;
     padding:14px 22px;
@@ -422,10 +576,16 @@ nav a:hover{color:var(--bright)}
     white-space:nowrap;
     transition:.2s;
 }
-.discord-button:hover{background:#7180ff;transform:translateY(-2px)}
+
+.discord-button:hover{
+    background:#7180ff;
+    transform:translateY(-2px);
+}
 
 /* SECTIONS */
+
 .section{padding:65px 0 20px}
+
 .section-heading{
     display:flex;
     align-items:center;
@@ -433,12 +593,28 @@ nav a:hover{color:var(--bright)}
     margin-bottom:22px;
     gap:15px;
 }
-.section-heading h2{font-size:23px;margin:0}
+
+.section-heading h2{
+    font-size:23px;
+    margin:0;
+}
+
 .section-heading span{color:var(--purple)}
-.section-heading p{color:#a99ab9;font-size:12px;margin:0}
+
+.section-heading p{
+    color:#a99ab9;
+    font-size:12px;
+    margin:0;
+}
 
 /* GAMEMODES */
-.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:13px}
+
+.cards{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:13px;
+}
+
 .card{
     background:linear-gradient(145deg,#171020,#0e0b15);
     border:1px solid #302044;
@@ -446,11 +622,13 @@ nav a:hover{color:var(--bright)}
     padding:21px 17px;
     transition:.2s;
 }
+
 .card:hover{
     transform:translateY(-4px);
     border-color:var(--purple);
     box-shadow:0 8px 25px #a020f018;
 }
+
 .card-icon{
     width:35px;
     height:35px;
@@ -464,29 +642,65 @@ nav a:hover{color:var(--bright)}
     font-weight:bold;
     margin-bottom:15px;
 }
-.card h3{font-size:16px;margin:0 0 8px;color:#e5caff}
-.card p{color:#92889f;font-size:12px;line-height:1.5;margin:0}
+
+.card h3{
+    font-size:16px;
+    margin:0 0 8px;
+    color:#e5caff;
+}
+
+.card p{
+    color:#92889f;
+    font-size:12px;
+    line-height:1.5;
+    margin:0;
+}
 
 /* HOW IT WORKS */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+
+.steps{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:15px;
+}
+
 .step{
     padding:23px;
     border:1px solid var(--border);
     background:#100c19;
     border-radius:13px;
 }
-.step-number{font-size:27px;font-weight:900;color:var(--purple);margin-bottom:13px}
-.step h3{margin:0 0 10px;font-size:17px}
-.step p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
+
+.step-number{
+    font-size:27px;
+    font-weight:900;
+    color:var(--purple);
+    margin-bottom:13px;
+}
+
+.step h3{
+    margin:0 0 10px;
+    font-size:17px;
+}
+
+.step p{
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.6;
+    margin:0;
+}
 
 /* TEAM */
+
 .team-box{
     padding:30px;
     border-radius:14px;
     border:1px solid var(--border);
     background:linear-gradient(120deg,#21102f,#100b19);
 }
+
 .team-box h2{margin-top:0}
+
 .team-box p{
     color:var(--muted);
     line-height:1.7;
@@ -495,15 +709,118 @@ nav a:hover{color:var(--bright)}
 }
 
 /* FOOTER */
-footer{
+
+.site-footer{
+    background:#111117;
+    border-top:1px solid #292431;
     margin-top:75px;
-    border-top:1px solid #281735;
-    padding:28px 15px;
-    text-align:center;
-    color:#766c83;
-    font-size:12px;
+    color:#fff;
 }
-footer strong{color:#b77aff}
+
+.footer-main{
+    max-width:1200px;
+    margin:auto;
+    padding:55px 20px 45px;
+    display:grid;
+    grid-template-columns:1.5fr 1fr 1fr 1fr;
+    gap:45px;
+}
+
+.footer-logo{
+    font-size:25px;
+    font-weight:1000;
+    letter-spacing:-1px;
+    margin-bottom:18px;
+}
+
+.footer-logo span{color:#a020f0}
+
+.footer-brand p{
+    color:#aaa1b6;
+    font-size:13px;
+    line-height:1.7;
+    max-width:360px;
+    margin:0 0 15px;
+}
+
+.footer-discord{
+    display:inline-block;
+    margin-top:10px;
+    padding:13px 18px;
+    background:#5865f2;
+    border-radius:7px;
+    color:white;
+    font-size:13px;
+    font-weight:bold;
+}
+
+.footer-discord:hover{background:#7180ff}
+
+.footer-column h3{
+    color:#998ba9;
+    font-size:11px;
+    letter-spacing:1.5px;
+    margin:3px 0 20px;
+}
+
+.footer-links{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:13px 20px;
+}
+
+.footer-links a,
+.footer-social a{
+    color:#e2dce9;
+    font-size:13px;
+    font-weight:bold;
+    transition:.2s;
+}
+
+.footer-links a:hover,
+.footer-social a:hover{color:#c084fc}
+
+.footer-social{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+}
+
+.coming-soon{
+    display:inline-block;
+    margin-left:5px;
+    padding:3px 6px;
+    background:#251a31;
+    border:1px solid #49315e;
+    border-radius:4px;
+    color:#c084fc;
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.5px;
+}
+
+.footer-bottom{
+    border-top:1px solid #292431;
+    padding:22px max(calc((100% - 1200px) / 2),20px);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    flex-wrap:wrap;
+    color:#81778d;
+    font-size:11px;
+}
+
+.footer-legal{
+    display:flex;
+    gap:22px;
+    flex-wrap:wrap;
+}
+
+.footer-legal a{color:#a49aaf}
+.footer-legal a:hover{color:#c084fc}
+
+/* RESPONSIVE */
 
 @media(max-width:850px){
     .cards{grid-template-columns:repeat(3,1fr)}
@@ -511,17 +828,40 @@ footer strong{color:#b77aff}
     nav{gap:12px}
     .live-section{grid-template-columns:1fr}
     .carousel-window{min-height:190px}
+    .footer-main{grid-template-columns:repeat(2,1fr);gap:35px}
 }
+
 @media(max-width:600px){
-    .navbar{padding:16px 0;flex-direction:column;gap:17px}
-    nav{flex-wrap:wrap;justify-content:center}
+    .navbar{
+        padding:16px 0;
+        flex-direction:column;
+        gap:17px;
+    }
+
+    nav{
+        flex-wrap:wrap;
+        justify-content:center;
+    }
+
     nav a{font-size:12px}
     .hero{padding-top:45px}
-    .community{flex-direction:column;align-items:flex-start}
+
+    .community{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
     .cards{grid-template-columns:repeat(2,1fr)}
     .steps{grid-template-columns:1fr}
     .search button{width:100%}
+    .footer-main{grid-template-columns:1fr;gap:30px}
+
+    .footer-bottom{
+        flex-direction:column;
+        align-items:flex-start;
+    }
 }
+
 @media(max-width:360px){
     .cards{grid-template-columns:1fr}
 }
@@ -550,6 +890,8 @@ footer strong{color:#b77aff}
 
 <main>
 <div class="container">
+
+    <!-- HERO -->
 
     <section class="hero" id="home">
         <div class="eyebrow">Minecraft PvP Tierlist</div>
@@ -594,6 +936,8 @@ footer strong{color:#b77aff}
             Welcome to VIPTIERS.
         </div>
 
+        <!-- PLAYER SEARCH -->
+
         <div class="search-card">
             <h2>Find a Player</h2>
             <p>Search for a Minecraft player to view their VIPTIERS profile.</p>
@@ -614,12 +958,13 @@ footer strong{color:#b77aff}
         </div>
     </section>
 
-    <!-- LIVE RESULTS + HOW TO GET TESTED -->
+    <!-- LIVE RESULTS AND TESTING GUIDE -->
+
     <section class="live-section" aria-label="Latest tier results and testing guide">
 
         <div class="live-panel">
             <div class="live-heading">
-                <h2>Live Results <span class="live-dot" aria-label="live"></span></h2>
+                <h2>Live Results <span class="live-dot"></span></h2>
                 <a class="live-view-all" href="tiers.html">View Rankings →</a>
             </div>
 
@@ -633,7 +978,7 @@ footer strong{color:#b77aff}
                 <h2>How to Get Tested</h2>
             </div>
 
-            <div class="carousel-window" id="testing-carousel">
+            <div class="carousel-window">
 
                 <article class="testing-slide active">
                     <span class="slide-step">Step 1 of 4</span>
@@ -666,7 +1011,7 @@ footer strong{color:#b77aff}
             </div>
 
             <div class="carousel-controls">
-                <div class="carousel-dots" id="carousel-dots" aria-label="Choose testing step">
+                <div class="carousel-dots" id="carousel-dots">
                     <button class="carousel-dot active" type="button" aria-label="Step 1"></button>
                     <button class="carousel-dot" type="button" aria-label="Step 2"></button>
                     <button class="carousel-dot" type="button" aria-label="Step 3"></button>
@@ -681,6 +1026,8 @@ footer strong{color:#b77aff}
         </div>
 
     </section>
+
+    <!-- COMMUNITY -->
 
     <section class="community">
         <div>
@@ -699,6 +1046,8 @@ footer strong{color:#b77aff}
         >Join Discord →</a>
     </section>
 
+    <!-- GAMEMODES -->
+
     <section class="section" id="tiers">
         <div class="section-heading">
             <h2>Gamemode Rankings <span>●</span></h2>
@@ -706,18 +1055,69 @@ footer strong{color:#b77aff}
         </div>
 
         <div class="cards">
-            <div class="card"><div class="card-icon">C</div><h3>Crystal</h3><p>Crystal PvP rankings</p></div>
-            <div class="card"><div class="card-icon">U</div><h3>UHC</h3><p>UHC rankings</p></div>
-            <div class="card"><div class="card-icon">P</div><h3>Pot</h3><p>Pot PvP rankings</p></div>
-            <div class="card"><div class="card-icon">N</div><h3>NethOP</h3><p>NethOP rankings</p></div>
-            <div class="card"><div class="card-icon">D</div><h3>DiaSMP</h3><p>DiaSMP rankings</p></div>
-            <div class="card"><div class="card-icon">S</div><h3>Sword</h3><p>Sword rankings</p></div>
-            <div class="card"><div class="card-icon">A</div><h3>Axe</h3><p>Axe rankings</p></div>
-            <div class="card"><div class="card-icon">M</div><h3>Mace</h3><p>Mace rankings</p></div>
-            <div class="card"><div class="card-icon">SM</div><h3>Spear Mace</h3><p>Spear Mace rankings</p></div>
-            <div class="card"><div class="card-icon">C</div><h3>Cart</h3><p>Cart rankings</p></div>
+            <a class="card" href="tiers.html?gamemode=Crystal">
+                <div class="card-icon">C</div>
+                <h3>Crystal</h3>
+                <p>Crystal PvP rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=UHC">
+                <div class="card-icon">U</div>
+                <h3>UHC</h3>
+                <p>UHC rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=Pot">
+                <div class="card-icon">P</div>
+                <h3>Pot</h3>
+                <p>Pot PvP rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=NethOP">
+                <div class="card-icon">N</div>
+                <h3>NethOP</h3>
+                <p>NethOP rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=DiaSMP">
+                <div class="card-icon">D</div>
+                <h3>DiaSMP</h3>
+                <p>DiaSMP rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=Sword">
+                <div class="card-icon">S</div>
+                <h3>Sword</h3>
+                <p>Sword rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=Axe">
+                <div class="card-icon">A</div>
+                <h3>Axe</h3>
+                <p>Axe rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=Mace">
+                <div class="card-icon">M</div>
+                <h3>Mace</h3>
+                <p>Mace rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=Spear%20Mace">
+                <div class="card-icon">SM</div>
+                <h3>Spear Mace</h3>
+                <p>Spear Mace rankings</p>
+            </a>
+
+            <a class="card" href="tiers.html?gamemode=Cart">
+                <div class="card-icon">C</div>
+                <h3>Cart</h3>
+                <p>Cart rankings</p>
+            </a>
         </div>
     </section>
+
+    <!-- HOW IT WORKS -->
 
     <section class="section" id="how">
         <div class="section-heading">
@@ -745,6 +1145,8 @@ footer strong{color:#b77aff}
         </div>
     </section>
 
+    <!-- TEAM -->
+
     <section class="section" id="team">
         <div class="team-box">
             <h2>Meet the VIPTIERS Team</h2>
@@ -766,14 +1168,134 @@ footer strong{color:#b77aff}
 </div>
 </main>
 
-<footer>
-    <strong>VIPTIERS</strong> © 2026 — Minecraft PvP Tiering Network
+<!-- COMPLETE FOOTER -->
+
+<footer class="site-footer">
+
+    <div class="footer-main">
+
+        <!-- BRAND -->
+
+        <div class="footer-brand">
+            <div class="footer-logo">VIP<span>TIERS</span></div>
+
+            <p>
+                The competitive <strong>Minecraft PvP tierlist.</strong>
+                Get tier tested across 10 gamemodes, earn your
+                tier and climb the rankings.
+            </p>
+
+            <p>
+                Tier tests, support and announcements all happen
+                on our Discord server.
+            </p>
+
+            <a
+                href="https://discord.gg/Mj2uPq5Hb"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="footer-discord"
+            >
+                Join our Discord →
+            </a>
+        </div>
+
+        <!-- WEBSITE LINKS -->
+
+        <div class="footer-column">
+            <h3>VIPTIERS</h3>
+
+            <div class="footer-links">
+                <a href="index.html">Home</a>
+                <a href="#tournaments">Tournaments</a>
+                <a href="tiers.html">Rankings</a>
+                <a href="#team">Team</a>
+                <a href="#downloads">Downloads</a>
+                <a href="#partners">Partners</a>
+            </div>
+        </div>
+
+        <!-- GAMEMODES -->
+
+        <div class="footer-column">
+            <h3>GAMEMODES</h3>
+
+            <div class="footer-links">
+                <a href="tiers.html?gamemode=Crystal">Crystal</a>
+                <a href="tiers.html?gamemode=Sword">Sword</a>
+                <a href="tiers.html?gamemode=UHC">UHC</a>
+                <a href="tiers.html?gamemode=Axe">Axe</a>
+                <a href="tiers.html?gamemode=Pot">Pot</a>
+                <a href="tiers.html?gamemode=Mace">Mace</a>
+                <a href="tiers.html?gamemode=NethOP">NethOP</a>
+                <a href="tiers.html?gamemode=Spear%20Mace">Spear Mace</a>
+                <a href="tiers.html?gamemode=DiaSMP">DiaSMP</a>
+                <a href="tiers.html?gamemode=Cart">Cart</a>
+            </div>
+        </div>
+
+        <!-- SOCIAL -->
+
+        <div class="footer-column">
+            <h3>SOCIAL</h3>
+
+            <div class="footer-social">
+
+                <a
+                    href="https://discord.gg/Mj2uPq5Hb"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >Discord</a>
+
+                <a href="#social">
+                    X (Twitter)
+                    <span class="coming-soon">COMING SOON</span>
+                </a>
+
+                <a href="#social">
+                    YouTube
+                    <span class="coming-soon">COMING SOON</span>
+                </a>
+
+                <a href="#social">
+                    TikTok
+                    <span class="coming-soon">COMING SOON</span>
+                </a>
+
+                <a href="#social">
+                    Twitch
+                    <span class="coming-soon">COMING SOON</span>
+                </a>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- BOTTOM BAR -->
+
+    <div class="footer-bottom">
+
+        <div class="footer-legal">
+            <span>© 2026 VIPTIERS. All rights reserved.</span>
+            <a href="terms.html">Terms of Service</a>
+            <a href="privacy.html">Privacy Policy</a>
+        </div>
+
+        <div>
+            Not affiliated with Mojang or Microsoft.
+            Minecraft is a trademark of Mojang AB.
+        </div>
+
+    </div>
+
 </footer>
 
 <script>
 const API_URL = "https://viptiers.onrender.com";
 
 /* CHECK VERIFIED ACCOUNT */
+
 async function updateAccountNav() {
     const nav = document.getElementById("account-nav");
     const message = document.getElementById("verified-message");
@@ -792,7 +1314,10 @@ async function updateAccountNav() {
         if (!response.ok) throw new Error("Player not found");
 
         const result = await response.json();
-        if (result.success === false) throw new Error("Player not verified");
+
+        if (result.success === false) {
+            throw new Error("Player not verified");
+        }
 
         const player =
             result.data?.player ||
@@ -800,15 +1325,18 @@ async function updateAccountNav() {
             result.data ||
             result;
 
-        if (!player.username ||
-            player.username.toLowerCase() !== username.toLowerCase()) {
+        if (
+            !player.username ||
+            player.username.toLowerCase() !== username.toLowerCase()
+        ) {
             throw new Error("Verification could not be confirmed");
         }
 
         nav.innerHTML = "";
 
         const profileLink = document.createElement("a");
-        profileLink.href = "player.html?username=" + encodeURIComponent(player.username);
+        profileLink.href =
+            "player.html?username=" + encodeURIComponent(player.username);
         profileLink.className = "nav-button";
         profileLink.textContent = "My Profile ✓";
 
@@ -818,6 +1346,7 @@ async function updateAccountNav() {
 
         nav.appendChild(profileLink);
         nav.appendChild(verifiedLabel);
+
         message.style.display = "block";
 
     } catch (error) {
@@ -826,20 +1355,8 @@ async function updateAccountNav() {
     }
 }
 
-/* OPEN MY PROFILE */
-function openMyProfile() {
-    const username = localStorage.getItem("viptiers_username");
-
-    if (!username) {
-        window.location.href = "verify.html";
-        return;
-    }
-
-    window.location.href =
-        "player.html?username=" + encodeURIComponent(username);
-}
-
 /* SEARCH PLAYERS */
+
 function searchPlayer() {
     const username = document.getElementById("username").value.trim();
     const result = document.getElementById("result");
@@ -859,6 +1376,7 @@ function searchPlayer() {
 }
 
 /* LOAD LIVE RESULTS */
+
 async function loadLiveResults() {
     const list = document.getElementById("live-results");
 
@@ -891,23 +1409,34 @@ async function loadLiveResults() {
         list.innerHTML = players.map((player, index) => {
             const username = escapeLiveText(player.username);
             const tier = escapeLiveText(player.tier);
-            const gamemode = escapeLiveText(player.gamemode || "Minecraft PvP");
-            const testedAt = player.testedAt ? new Date(player.testedAt) : null;
+            const gamemode = escapeLiveText(
+                player.gamemode || "Minecraft PvP"
+            );
 
-            const when = testedAt && !Number.isNaN(testedAt.getTime())
-                ? formatLiveTime(testedAt)
-                : "Test result";
+            const testedAt = player.testedAt
+                ? new Date(player.testedAt)
+                : null;
+
+            const when =
+                testedAt && !Number.isNaN(testedAt.getTime())
+                    ? formatLiveTime(testedAt)
+                    : "Test result";
 
             return `
                 <div class="live-row">
                     <span class="live-rank">${index + 1}</span>
+
                     <div>
                         <a class="live-player-name"
                            href="player.html?username=${encodeURIComponent(player.username)}">
                            ${username}
                         </a>
-                        <span class="live-player-meta">${gamemode} · ${when}</span>
+
+                        <span class="live-player-meta">
+                            ${gamemode} · ${when}
+                        </span>
                     </div>
+
                     <span class="live-tier">${tier}</span>
                 </div>`;
         }).join("");
@@ -918,6 +1447,7 @@ async function loadLiveResults() {
                 Live results are temporarily unavailable.<br>
                 Please try again in a moment.
             </div>`;
+
         console.log("Live results could not be loaded:", error);
     }
 }
@@ -933,7 +1463,10 @@ function escapeLiveText(value) {
 }
 
 function formatLiveTime(date) {
-    const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+    const seconds = Math.max(
+        0,
+        Math.floor((Date.now() - date.getTime()) / 1000)
+    );
 
     if (seconds < 60) return "just now";
 
@@ -948,12 +1481,20 @@ function formatLiveTime(date) {
 }
 
 /* TESTING GUIDE CAROUSEL */
-const testingSlides = Array.from(document.querySelectorAll(".testing-slide"));
-const testingDots = Array.from(document.querySelectorAll(".carousel-dot"));
+
+const testingSlides = Array.from(
+    document.querySelectorAll(".testing-slide")
+);
+
+const testingDots = Array.from(
+    document.querySelectorAll(".carousel-dot")
+);
+
 let testingSlideIndex = 0;
 
 function showTestingSlide(index) {
-    testingSlideIndex = (index + testingSlides.length) % testingSlides.length;
+    testingSlideIndex =
+        (index + testingSlides.length) % testingSlides.length;
 
     testingSlides.forEach((slide, i) => {
         slide.classList.toggle("active", i === testingSlideIndex);
@@ -973,10 +1514,13 @@ document.getElementById("carousel-next").addEventListener("click", () => {
 });
 
 testingDots.forEach((dot, index) => {
-    dot.addEventListener("click", () => showTestingSlide(index));
+    dot.addEventListener("click", () => {
+        showTestingSlide(index);
+    });
 });
 
 /* START HOMEPAGE */
+
 updateAccountNav();
 loadLiveResults();
 </script>
