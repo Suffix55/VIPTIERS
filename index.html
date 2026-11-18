@@ -2,618 +2,541 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>VIPTIERS | Minecraft PvP Tierlist</title>
-    <meta name="description" content="VIPTIERS Minecraft PvP rankings, player profiles and tier testing.">
-
-    <style>
-        :root {
-            --bg: #08060e;
-            --panel: #100c1a;
-            --purple: #a020f0;
-            --bright: #c084fc;
-            --border: #302044;
-            --muted: #aaa0bb;
-            --white: #ffffff;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            margin: 0;
-            background:
-                radial-gradient(ellipse at 50% 0%, #211039 0%, transparent 42%),
-                var(--bg);
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-
-        a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        button, input {
-            font: inherit;
-        }
-
-        .container {
-            width: min(1120px, 92%);
-            margin: auto;
-        }
-
-        /* NAVBAR */
-
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: rgba(8, 6, 14, 0.94);
-            backdrop-filter: blur(15px);
-            border-bottom: 1px solid #281735;
-        }
-
-        .navbar {
-            min-height: 72px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
-        .logo {
-            font-size: 25px;
-            font-weight: 1000;
-            letter-spacing: -1px;
-        }
-
-        .logo span {
-            color: var(--purple);
-        }
-
-        nav {
-            display: flex;
-            align-items: center;
-            gap: 22px;
-        }
-
-        nav a {
-            color: #b9afc8;
-            font-size: 13px;
-            font-weight: bold;
-            transition: 0.2s;
-        }
-
-        nav a:hover {
-            color: var(--bright);
-        }
-
-        .nav-button {
-            background: linear-gradient(135deg, #a020f0, #7200d6);
-            padding: 12px 18px;
-            border-radius: 8px;
-            color: white;
-            display: inline-block;
-        }
-
-        .nav-button:hover {
-            color: white;
-            box-shadow: 0 0 20px #a020f080;
-        }
-
-        #account-nav {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-        }
-
-        .verified-label {
-            color: #4ade80;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        /* HERO */
-
-        .hero {
-            padding: 65px 0 50px;
-        }
-
-        .eyebrow {
-            color: var(--bright);
-            font-size: 13px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-
-        .eyebrow::before {
-            content: "●";
-            color: var(--purple);
-            margin-right: 9px;
-        }
-
-        .hero h1 {
-            font-size: clamp(42px, 7vw, 70px);
-            line-height: 1.02;
-            margin: 0;
-            font-weight: 1000;
-            letter-spacing: -2px;
-        }
-
-        .hero h1 span {
-            color: var(--purple);
-            font-style: italic;
-        }
-
-        .hero-description {
-            color: var(--muted);
-            max-width: 510px;
-            line-height: 1.7;
-            font-size: 16px;
-            margin: 17px 0 30px;
-        }
-
-        .hero-grid {
-            display: grid;
-            grid-template-columns: 1.15fr 0.85fr;
-            gap: 22px;
-        }
-
-        .hero-card {
-            min-height: 230px;
-            padding: 28px;
-            border: 1px solid #482466;
-            border-radius: 16px;
-            background: linear-gradient(120deg, #241039, #100b19);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .hero-card::after {
-            content: "";
-            position: absolute;
-            width: 230px;
-            height: 230px;
-            border-radius: 50%;
-            background: #9000ff20;
-            filter: blur(45px);
-            right: -80px;
-            bottom: -110px;
-        }
-
-        .hero-card h2 {
-            max-width: 370px;
-            font-size: 24px;
-            line-height: 1.35;
-            margin: 0 0 12px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .hero-card p {
-            color: #bdb1ca;
-            max-width: 360px;
-            line-height: 1.6;
-            font-size: 14px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .primary-button {
-            display: inline-block;
-            width: fit-content;
-            margin-top: 14px;
-            padding: 13px 22px;
-            background: linear-gradient(135deg, #b12cff, #7900e8);
-            color: white;
-            border: 0;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 5px 25px #8b00ff45;
-            position: relative;
-            z-index: 2;
-        }
-
-        .primary-button:hover {
-            filter: brightness(1.2);
-        }
-
-        .side-card {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .mini-card {
-            background: linear-gradient(145deg, #191126, #0f0b17);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 20px 16px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .mini-label {
-            color: #a99ab9;
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 1.2px;
-        }
-
-        .mini-card h3 {
-            font-size: 22px;
-            line-height: 1.2;
-            margin: 12px 0;
-        }
-
-        .mini-card p {
-            color: #a99ab9;
-            font-size: 12px;
-            line-height: 1.5;
-        }
-
-        .mini-tier {
-            display: inline-block;
-            color: #e9c7ff;
-            background: #7524a9;
-            padding: 7px 10px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 12px;
-            margin-top: 8px;
-            width: fit-content;
-        }
-
-        /* SEARCH */
-
-        .search-card {
-            margin-top: 24px;
-            padding: 25px;
-            border-radius: 14px;
-            background: #100c1a;
-            border: 1px solid var(--border);
-        }
-
-        .search-card h2 {
-            margin: 0 0 8px;
-            font-size: 20px;
-        }
-
-        .search-card p {
-            color: var(--muted);
-            font-size: 13px;
-            margin-bottom: 17px;
-        }
-
-        .search {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .search input {
-            flex: 1;
-            min-width: 190px;
-            padding: 14px 16px;
-            background: #090711;
-            border: 1px solid #493263;
-            border-radius: 8px;
-            color: white;
-            outline: none;
-        }
-
-        .search input:focus {
-            border-color: var(--purple);
-        }
-
-        .search button {
-            border: none;
-            padding: 14px 22px;
-            border-radius: 8px;
-            color: white;
-            background: linear-gradient(135deg, #a020f0, #7200d6);
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        #result {
-            color: #d8b5ff;
-            font-size: 13px;
-            margin-top: 14px;
-        }
-
-        /* VERIFIED MESSAGE */
-
-        .verified-message {
-            display: none;
-            margin-top: 18px;
-            padding: 14px 17px;
-            border: 1px solid #176b43;
-            background: #0d2419;
-            color: #4ade80;
-            border-radius: 9px;
-            font-size: 13px;
-            font-weight: bold;
-        }
-
-        /* COMMUNITY */
-
-        .community {
-            margin-top: 28px;
-            min-height: 145px;
-            padding: 27px 32px;
-            border-radius: 15px;
-            border: 1px solid #47215f;
-            background:
-                radial-gradient(ellipse at right, #65119c45, transparent 60%),
-                #100b18;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .community h2 {
-            margin: 0 0 10px;
-            font-size: 22px;
-        }
-
-        .community p {
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.6;
-            max-width: 480px;
-            margin: 0;
-        }
-
-        .discord-button {
-            display: inline-block;
-            padding: 14px 22px;
-            border-radius: 8px;
-            background: #5865F2;
-            color: white;
-            font-weight: bold;
-            white-space: nowrap;
-            transition: 0.2s;
-        }
-
-        .discord-button:hover {
-            background: #7180ff;
-            transform: translateY(-2px);
-        }
-
-        /* SECTIONS */
-
-        .section {
-            padding: 65px 0 20px;
-        }
-
-        .section-heading {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 22px;
-            gap: 15px;
-        }
-
-        .section-heading h2 {
-            font-size: 23px;
-            margin: 0;
-        }
-
-        .section-heading span {
-            color: var(--purple);
-        }
-
-        .section-heading p {
-            color: #a99ab9;
-            font-size: 12px;
-            margin: 0;
-        }
-
-        /* GAMEMODES */
-
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 13px;
-        }
-
-        .card {
-            background: linear-gradient(145deg, #171020, #0e0b15);
-            border: 1px solid #302044;
-            border-radius: 12px;
-            padding: 21px 17px;
-            transition: 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-4px);
-            border-color: var(--purple);
-            box-shadow: 0 8px 25px #a020f018;
-        }
-
-        .card-icon {
-            width: 35px;
-            height: 35px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #512078;
-            color: white;
-            border-radius: 9px;
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-
-        .card h3 {
-            font-size: 16px;
-            margin: 0 0 8px;
-            color: #e5caff;
-        }
-
-        .card p {
-            color: #92889f;
-            font-size: 12px;
-            line-height: 1.5;
-            margin: 0;
-        }
-
-        /* HOW IT WORKS */
-
-        .steps {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-        }
-
-        .step {
-            padding: 23px;
-            border: 1px solid var(--border);
-            background: #100c19;
-            border-radius: 13px;
-        }
-
-        .step-number {
-            font-size: 27px;
-            font-weight: 900;
-            color: var(--purple);
-            margin-bottom: 13px;
-        }
-
-        .step h3 {
-            margin: 0 0 10px;
-            font-size: 17px;
-        }
-
-        .step p {
-            color: var(--muted);
-            font-size: 13px;
-            line-height: 1.6;
-            margin: 0;
-        }
-
-        /* TEAM */
-
-        .team-box {
-            padding: 30px;
-            border-radius: 14px;
-            border: 1px solid var(--border);
-            background: linear-gradient(120deg, #21102f, #100b19);
-        }
-
-        .team-box h2 {
-            margin-top: 0;
-        }
-
-        .team-box p {
-            color: var(--muted);
-            line-height: 1.7;
-            max-width: 650px;
-            font-size: 14px;
-        }
-
-        /* FOOTER */
-
-        footer {
-            margin-top: 75px;
-            border-top: 1px solid #281735;
-            padding: 28px 15px;
-            text-align: center;
-            color: #766c83;
-            font-size: 12px;
-        }
-
-        footer strong {
-            color: #b77aff;
-        }
-
-        @media (max-width: 850px) {
-            .cards {
-                grid-template-columns: repeat(3, 1fr);
-            }
-
-            .hero-grid {
-                grid-template-columns: 1fr;
-            }
-
-            nav {
-                gap: 12px;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .navbar {
-                padding: 16px 0;
-                flex-direction: column;
-                gap: 17px;
-            }
-
-            nav {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-
-            nav a {
-                font-size: 12px;
-            }
-
-            .hero {
-                padding-top: 45px;
-            }
-
-            .community {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .steps {
-                grid-template-columns: 1fr;
-            }
-
-            .search button {
-                width: 100%;
-            }
-        }
-
-        @media (max-width: 360px) {
-            .cards {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIPTIERS | Minecraft PvP Tierlist</title>
+<meta name="description" content="VIPTIERS Minecraft PvP rankings, player profiles and tier testing.">
+
+<style>
+:root {
+    --bg:#08060e;
+    --panel:#100c1a;
+    --purple:#a020f0;
+    --bright:#c084fc;
+    --border:#302044;
+    --muted:#aaa0bb;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+    margin:0;
+    background:radial-gradient(ellipse at 50% 0%,#211039 0%,transparent 42%),var(--bg);
+    color:white;
+    font-family:Arial,sans-serif;
+}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+.container{width:min(1120px,92%);margin:auto}
+
+/* NAVBAR */
+header{
+    position:sticky;
+    top:0;
+    z-index:100;
+    background:rgba(8,6,14,.94);
+    backdrop-filter:blur(15px);
+    border-bottom:1px solid #281735;
+}
+.navbar{
+    min-height:72px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+}
+.logo{
+    font-size:25px;
+    font-weight:1000;
+    letter-spacing:-1px;
+}
+.logo span{color:var(--purple)}
+nav{display:flex;align-items:center;gap:22px}
+nav a{
+    color:#b9afc8;
+    font-size:13px;
+    font-weight:bold;
+    transition:.2s;
+}
+nav a:hover{color:var(--bright)}
+.nav-button{
+    background:linear-gradient(135deg,#a020f0,#7200d6);
+    padding:12px 18px;
+    border-radius:8px;
+    color:white;
+    display:inline-block;
+}
+.nav-button:hover{color:white;box-shadow:0 0 20px #a020f080}
+#account-nav{display:flex;align-items:center;gap:9px}
+.verified-label{color:#4ade80;font-size:11px;font-weight:bold}
+
+/* HERO */
+.hero{padding:65px 0 50px}
+.eyebrow{
+    color:var(--bright);
+    font-size:13px;
+    font-weight:bold;
+    margin-bottom:15px;
+}
+.eyebrow::before{content:"●";color:var(--purple);margin-right:9px}
+.hero h1{
+    font-size:clamp(42px,7vw,70px);
+    line-height:1.02;
+    margin:0;
+    font-weight:1000;
+    letter-spacing:-2px;
+}
+.hero h1 span{color:var(--purple);font-style:italic}
+.hero-description{
+    color:var(--muted);
+    max-width:510px;
+    line-height:1.7;
+    font-size:16px;
+    margin:17px 0 30px;
+}
+.hero-grid{
+    display:grid;
+    grid-template-columns:1.15fr .85fr;
+    gap:22px;
+}
+.hero-card{
+    min-height:230px;
+    padding:28px;
+    border:1px solid #482466;
+    border-radius:16px;
+    background:linear-gradient(120deg,#241039,#100b19);
+    position:relative;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+.hero-card::after{
+    content:"";
+    position:absolute;
+    width:230px;
+    height:230px;
+    border-radius:50%;
+    background:#9000ff20;
+    filter:blur(45px);
+    right:-80px;
+    bottom:-110px;
+}
+.hero-card h2{
+    max-width:370px;
+    font-size:24px;
+    line-height:1.35;
+    margin:0 0 12px;
+    position:relative;
+    z-index:1;
+}
+.hero-card p{
+    color:#bdb1ca;
+    max-width:360px;
+    line-height:1.6;
+    font-size:14px;
+    position:relative;
+    z-index:1;
+}
+.primary-button{
+    display:inline-block;
+    width:fit-content;
+    margin-top:14px;
+    padding:13px 22px;
+    background:linear-gradient(135deg,#b12cff,#7900e8);
+    color:white;
+    border:0;
+    border-radius:8px;
+    font-weight:bold;
+    cursor:pointer;
+    box-shadow:0 5px 25px #8b00ff45;
+    position:relative;
+    z-index:2;
+}
+.primary-button:hover{filter:brightness(1.2)}
+.side-card{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mini-card{
+    background:linear-gradient(145deg,#191126,#0f0b17);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:20px 16px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+.mini-label{
+    color:#a99ab9;
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1.2px;
+}
+.mini-card h3{font-size:22px;line-height:1.2;margin:12px 0}
+.mini-card p{color:#a99ab9;font-size:12px;line-height:1.5}
+.mini-tier{
+    display:inline-block;
+    color:#e9c7ff;
+    background:#7524a9;
+    padding:7px 10px;
+    border-radius:6px;
+    font-weight:bold;
+    font-size:12px;
+    margin-top:8px;
+    width:fit-content;
+}
+
+/* SEARCH */
+.search-card{
+    margin-top:24px;
+    padding:25px;
+    border-radius:14px;
+    background:#100c1a;
+    border:1px solid var(--border);
+}
+.search-card h2{margin:0 0 8px;font-size:20px}
+.search-card p{color:var(--muted);font-size:13px;margin-bottom:17px}
+.search{display:flex;gap:10px;flex-wrap:wrap}
+.search input{
+    flex:1;
+    min-width:190px;
+    padding:14px 16px;
+    background:#090711;
+    border:1px solid #493263;
+    border-radius:8px;
+    color:white;
+    outline:none;
+}
+.search input:focus{border-color:var(--purple)}
+.search button{
+    border:0;
+    padding:14px 22px;
+    border-radius:8px;
+    color:white;
+    background:linear-gradient(135deg,#a020f0,#7200d6);
+    font-weight:bold;
+    cursor:pointer;
+}
+#result{color:#d8b5ff;font-size:13px;margin-top:14px}
+
+/* VERIFIED MESSAGE */
+.verified-message{
+    display:none;
+    margin-top:18px;
+    padding:14px 17px;
+    border:1px solid #176b43;
+    background:#0d2419;
+    color:#4ade80;
+    border-radius:9px;
+    font-size:13px;
+    font-weight:bold;
+}
+
+/* LIVE RESULTS + TESTING GUIDE */
+.live-section{
+    display:grid;
+    grid-template-columns:1.08fr .92fr;
+    gap:22px;
+    margin:8px 0 22px;
+    align-items:stretch;
+}
+.live-panel,.testing-panel{
+    min-width:0;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:linear-gradient(145deg,#151020,#0d0a14);
+    overflow:hidden;
+}
+.live-panel{padding:20px}
+.live-heading,.testing-heading{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:16px;
+}
+.live-heading h2,.testing-heading h2{margin:0;font-size:17px}
+.live-dot{
+    display:inline-block;
+    width:8px;
+    height:8px;
+    margin-left:7px;
+    border-radius:50%;
+    background:#4ade80;
+    box-shadow:0 0 10px #4ade80;
+    vertical-align:2px;
+}
+.live-view-all{color:var(--bright);font-size:12px;font-weight:bold}
+.live-list{display:grid;gap:8px}
+.live-row{
+    display:grid;
+    grid-template-columns:25px minmax(0,1fr) auto;
+    align-items:center;
+    gap:10px;
+    min-height:56px;
+    padding:9px 11px;
+    border-radius:9px;
+    background:#0b0912;
+    border:1px solid #21182d;
+}
+.live-rank{
+    color:#8d829b;
+    font-size:12px;
+    font-weight:800;
+    text-align:center;
+}
+.live-player-name{
+    display:block;
+    color:#fff;
+    font-size:13px;
+    font-weight:800;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.live-player-meta{
+    display:block;
+    margin-top:4px;
+    color:#8f849e;
+    font-size:11px;
+}
+.live-tier{
+    display:inline-block;
+    padding:6px 9px;
+    border:1px solid #7542a0;
+    border-radius:6px;
+    background:#281638;
+    color:#ddb8ff;
+    font-size:11px;
+    font-weight:900;
+    white-space:nowrap;
+}
+.live-state{
+    padding:25px 10px;
+    color:#94899f;
+    font-size:13px;
+    text-align:center;
+    line-height:1.6;
+}
+.testing-panel{display:flex;flex-direction:column}
+.testing-heading{padding:20px 20px 0;margin-bottom:14px}
+.carousel-window{
+    position:relative;
+    flex:1;
+    min-height:225px;
+    margin:0 14px;
+    padding:22px;
+    border:1px solid #2c203a;
+    border-radius:11px;
+    background:
+        radial-gradient(circle at 80% 15%,#68259b35,transparent 35%),
+        repeating-linear-gradient(45deg,#ffffff05 0 12px,transparent 12px 24px),
+        #0b0912;
+    display:flex;
+    align-items:center;
+}
+.testing-slide{display:none;width:100%}
+.testing-slide.active{display:block;animation:slideFade .25s ease}
+@keyframes slideFade{
+    from{opacity:.35;transform:translateY(5px)}
+    to{opacity:1;transform:translateY(0)}
+}
+.slide-step{
+    color:#a98acb;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+}
+.testing-slide h3{margin:10px 0 8px;font-size:21px}
+.testing-slide p{
+    margin:0;
+    color:#aaa0bb;
+    font-size:13px;
+    line-height:1.6;
+}
+.slide-link{
+    display:inline-block;
+    margin-top:15px;
+    padding:9px 14px;
+    border-radius:7px;
+    background:#7624ad;
+    color:#fff;
+    font-size:12px;
+    font-weight:800;
+}
+.carousel-controls{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:13px 20px 17px;
+}
+.carousel-arrows{display:flex;gap:7px}
+.carousel-arrows button{
+    width:29px;
+    height:29px;
+    border:1px solid #332441;
+    border-radius:7px;
+    background:#171020;
+    color:#d9c5ed;
+    cursor:pointer;
+    font-size:16px;
+}
+.carousel-arrows button:hover{border-color:var(--purple)}
+.carousel-dots{display:flex;gap:6px}
+.carousel-dot{
+    width:25px;
+    height:4px;
+    border:0;
+    border-radius:5px;
+    background:#382b45;
+    cursor:pointer;
+}
+.carousel-dot.active{background:#c084fc}
+
+/* COMMUNITY */
+.community{
+    margin-top:28px;
+    min-height:145px;
+    padding:27px 32px;
+    border-radius:15px;
+    border:1px solid #47215f;
+    background:radial-gradient(ellipse at right,#65119c45,transparent 60%),#100b18;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+}
+.community h2{margin:0 0 10px;font-size:22px}
+.community p{
+    color:var(--muted);
+    font-size:14px;
+    line-height:1.6;
+    max-width:480px;
+    margin:0;
+}
+.discord-button{
+    display:inline-block;
+    padding:14px 22px;
+    border-radius:8px;
+    background:#5865F2;
+    color:white;
+    font-weight:bold;
+    white-space:nowrap;
+    transition:.2s;
+}
+.discord-button:hover{background:#7180ff;transform:translateY(-2px)}
+
+/* SECTIONS */
+.section{padding:65px 0 20px}
+.section-heading{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:22px;
+    gap:15px;
+}
+.section-heading h2{font-size:23px;margin:0}
+.section-heading span{color:var(--purple)}
+.section-heading p{color:#a99ab9;font-size:12px;margin:0}
+
+/* GAMEMODES */
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:13px}
+.card{
+    background:linear-gradient(145deg,#171020,#0e0b15);
+    border:1px solid #302044;
+    border-radius:12px;
+    padding:21px 17px;
+    transition:.2s;
+}
+.card:hover{
+    transform:translateY(-4px);
+    border-color:var(--purple);
+    box-shadow:0 8px 25px #a020f018;
+}
+.card-icon{
+    width:35px;
+    height:35px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#512078;
+    color:white;
+    border-radius:9px;
+    font-size:14px;
+    font-weight:bold;
+    margin-bottom:15px;
+}
+.card h3{font-size:16px;margin:0 0 8px;color:#e5caff}
+.card p{color:#92889f;font-size:12px;line-height:1.5;margin:0}
+
+/* HOW IT WORKS */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.step{
+    padding:23px;
+    border:1px solid var(--border);
+    background:#100c19;
+    border-radius:13px;
+}
+.step-number{font-size:27px;font-weight:900;color:var(--purple);margin-bottom:13px}
+.step h3{margin:0 0 10px;font-size:17px}
+.step p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
+
+/* TEAM */
+.team-box{
+    padding:30px;
+    border-radius:14px;
+    border:1px solid var(--border);
+    background:linear-gradient(120deg,#21102f,#100b19);
+}
+.team-box h2{margin-top:0}
+.team-box p{
+    color:var(--muted);
+    line-height:1.7;
+    max-width:650px;
+    font-size:14px;
+}
+
+/* FOOTER */
+footer{
+    margin-top:75px;
+    border-top:1px solid #281735;
+    padding:28px 15px;
+    text-align:center;
+    color:#766c83;
+    font-size:12px;
+}
+footer strong{color:#b77aff}
+
+@media(max-width:850px){
+    .cards{grid-template-columns:repeat(3,1fr)}
+    .hero-grid{grid-template-columns:1fr}
+    nav{gap:12px}
+    .live-section{grid-template-columns:1fr}
+    .carousel-window{min-height:190px}
+}
+@media(max-width:600px){
+    .navbar{padding:16px 0;flex-direction:column;gap:17px}
+    nav{flex-wrap:wrap;justify-content:center}
+    nav a{font-size:12px}
+    .hero{padding-top:45px}
+    .community{flex-direction:column;align-items:flex-start}
+    .cards{grid-template-columns:repeat(2,1fr)}
+    .steps{grid-template-columns:1fr}
+    .search button{width:100%}
+}
+@media(max-width:360px){
+    .cards{grid-template-columns:1fr}
+}
+</style>
 </head>
 
 <body>
 
 <header>
     <div class="container navbar">
-
-        <a href="#home" class="logo">
-            VIP<span>TIERS</span>
-        </a>
+        <a href="#home" class="logo">VIP<span>TIERS</span></a>
 
         <nav>
             <a href="#home">Home</a>
-            <a href="#tiers">Rankings</a>
+            <a href="tiers.html">Rankings</a>
             <a href="#team">Team</a>
             <a href="#how">How It Works</a>
             <a href="https://discord.gg/Mj2uPq5Hb" target="_blank" rel="noopener noreferrer">Discord</a>
@@ -622,254 +545,225 @@
                 <a href="verify.html" class="nav-button">Sign In</a>
             </div>
         </nav>
-
     </div>
 </header>
 
 <main>
-    <div class="container">
+<div class="container">
 
-        <section class="hero" id="home">
+    <section class="hero" id="home">
+        <div class="eyebrow">Minecraft PvP Tierlist</div>
 
-            <div class="eyebrow">Minecraft PvP Tierlist</div>
+        <h1>WIN YOUR <span>TIER</span></h1>
 
-            <h1>
-                WIN YOUR <span>TIER</span>
-            </h1>
+        <p class="hero-description">
+            Competitive Minecraft PvP tierlist.
+            Get tested by our testers, earn your tier
+            and climb the rankings.
+        </p>
 
-            <p class="hero-description">
-                Competitive Minecraft PvP tierlist.
-                Get tested by our testers, earn your tier
-                and climb the rankings.
+        <div class="hero-grid">
+            <div class="hero-card">
+                <h2>Join the VIPTIERS competitive network.</h2>
+                <p>
+                    Verify your Minecraft account, request a tier test
+                    and track your progress.
+                </p>
+                <a href="verify.html" class="primary-button">Get Started →</a>
+            </div>
+
+            <div class="side-card">
+                <div class="mini-card">
+                    <div class="mini-label">RANKING SYSTEM</div>
+                    <h3>CLIMB<br>THE TIERS</h3>
+                    <p>Compete across our supported gamemodes.</p>
+                    <div class="mini-tier">HT1 – LT5</div>
+                </div>
+
+                <div class="mini-card">
+                    <div class="mini-label">HOW TO START</div>
+                    <h3>GET<br>TESTED</h3>
+                    <p>Verify your account and get ready for testing.</p>
+                    <a href="verify.html" class="mini-tier">Start →</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="verified-message" id="verified-message">
+            ✓ Your Minecraft account has been verified!
+            Welcome to VIPTIERS.
+        </div>
+
+        <div class="search-card">
+            <h2>Find a Player</h2>
+            <p>Search for a Minecraft player to view their VIPTIERS profile.</p>
+
+            <div class="search">
+                <input
+                    id="username"
+                    type="text"
+                    placeholder="Enter Minecraft username"
+                    maxlength="16"
+                    autocomplete="off"
+                    onkeydown="if(event.key === 'Enter') searchPlayer()"
+                >
+                <button onclick="searchPlayer()">Search Player →</button>
+            </div>
+
+            <div id="result"></div>
+        </div>
+    </section>
+
+    <!-- LIVE RESULTS + HOW TO GET TESTED -->
+    <section class="live-section" aria-label="Latest tier results and testing guide">
+
+        <div class="live-panel">
+            <div class="live-heading">
+                <h2>Live Results <span class="live-dot" aria-label="live"></span></h2>
+                <a class="live-view-all" href="tiers.html">View Rankings →</a>
+            </div>
+
+            <div class="live-list" id="live-results">
+                <div class="live-state">Loading latest tier results...</div>
+            </div>
+        </div>
+
+        <div class="testing-panel">
+            <div class="testing-heading">
+                <h2>How to Get Tested</h2>
+            </div>
+
+            <div class="carousel-window" id="testing-carousel">
+
+                <article class="testing-slide active">
+                    <span class="slide-step">Step 1 of 4</span>
+                    <h3>Join Our Discord</h3>
+                    <p>Join the VIPTIERS community for testing information, announcements and support.</p>
+                    <a class="slide-link" href="https://discord.gg/Mj2uPq5Hb" target="_blank" rel="noopener noreferrer">Join Discord →</a>
+                </article>
+
+                <article class="testing-slide">
+                    <span class="slide-step">Step 2 of 4</span>
+                    <h3>Verify Your Minecraft Account</h3>
+                    <p>Use the website verification page to connect your Minecraft username with your VIPTIERS profile.</p>
+                    <a class="slide-link" href="verify.html">Verify Account →</a>
+                </article>
+
+                <article class="testing-slide">
+                    <span class="slide-step">Step 3 of 4</span>
+                    <h3>Request a Tier Test</h3>
+                    <p>Follow the instructions in our Discord to request a test for the gamemode you want to play.</p>
+                    <a class="slide-link" href="https://discord.gg/Mj2uPq5Hb" target="_blank" rel="noopener noreferrer">Testing Information →</a>
+                </article>
+
+                <article class="testing-slide">
+                    <span class="slide-step">Step 4 of 4</span>
+                    <h3>Receive Your Tier</h3>
+                    <p>After your test is completed and a tester assigns your result, your tier can appear on your player profile and in rankings.</p>
+                    <a class="slide-link" href="tiers.html">View Rankings →</a>
+                </article>
+
+            </div>
+
+            <div class="carousel-controls">
+                <div class="carousel-dots" id="carousel-dots" aria-label="Choose testing step">
+                    <button class="carousel-dot active" type="button" aria-label="Step 1"></button>
+                    <button class="carousel-dot" type="button" aria-label="Step 2"></button>
+                    <button class="carousel-dot" type="button" aria-label="Step 3"></button>
+                    <button class="carousel-dot" type="button" aria-label="Step 4"></button>
+                </div>
+
+                <div class="carousel-arrows">
+                    <button type="button" id="carousel-prev" aria-label="Previous step">‹</button>
+                    <button type="button" id="carousel-next" aria-label="Next step">›</button>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="community">
+        <div>
+            <h2>Join the VIPTIERS Community</h2>
+            <p>
+                Meet competitive Minecraft players, get tier tested
+                and stay updated with VIPTIERS events and announcements.
+            </p>
+        </div>
+
+        <a
+            href="https://discord.gg/Mj2uPq5Hb"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="discord-button"
+        >Join Discord →</a>
+    </section>
+
+    <section class="section" id="tiers">
+        <div class="section-heading">
+            <h2>Gamemode Rankings <span>●</span></h2>
+            <p>10 supported gamemodes</p>
+        </div>
+
+        <div class="cards">
+            <div class="card"><div class="card-icon">C</div><h3>Crystal</h3><p>Crystal PvP rankings</p></div>
+            <div class="card"><div class="card-icon">U</div><h3>UHC</h3><p>UHC rankings</p></div>
+            <div class="card"><div class="card-icon">P</div><h3>Pot</h3><p>Pot PvP rankings</p></div>
+            <div class="card"><div class="card-icon">N</div><h3>NethOP</h3><p>NethOP rankings</p></div>
+            <div class="card"><div class="card-icon">D</div><h3>DiaSMP</h3><p>DiaSMP rankings</p></div>
+            <div class="card"><div class="card-icon">S</div><h3>Sword</h3><p>Sword rankings</p></div>
+            <div class="card"><div class="card-icon">A</div><h3>Axe</h3><p>Axe rankings</p></div>
+            <div class="card"><div class="card-icon">M</div><h3>Mace</h3><p>Mace rankings</p></div>
+            <div class="card"><div class="card-icon">SM</div><h3>Spear Mace</h3><p>Spear Mace rankings</p></div>
+            <div class="card"><div class="card-icon">C</div><h3>Cart</h3><p>Cart rankings</p></div>
+        </div>
+    </section>
+
+    <section class="section" id="how">
+        <div class="section-heading">
+            <h2>How to Get Tested <span>●</span></h2>
+        </div>
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">01</div>
+                <h3>Verify Your Account</h3>
+                <p>Connect your Minecraft username through the VIPTIERS verification process.</p>
+            </div>
+
+            <div class="step">
+                <div class="step-number">02</div>
+                <h3>Request a Test</h3>
+                <p>Follow the testing process to request a test for your preferred gamemode.</p>
+            </div>
+
+            <div class="step">
+                <div class="step-number">03</div>
+                <h3>Get Your Tier</h3>
+                <p>Once your test is completed, your profile can display your assigned tier.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="team">
+        <div class="team-box">
+            <h2>Meet the VIPTIERS Team</h2>
+            <p>
+                Our testing team helps evaluate players across
+                different Minecraft PvP gamemodes. Players can
+                follow their tier progress through their profiles.
             </p>
 
-            <div class="hero-grid">
-
-                <div class="hero-card">
-                    <h2>Join the VIPTIERS competitive network.</h2>
-
-                    <p>
-                        Verify your Minecraft account, request a tier test
-                        and track your progress.
-                    </p>
-
-                    <a href="verify.html" class="primary-button">
-                        Get Started →
-                    </a>
-                </div>
-
-                <div class="side-card">
-
-                    <div class="mini-card">
-                        <div class="mini-label">RANKING SYSTEM</div>
-                        <h3>CLIMB<br>THE TIERS</h3>
-                        <p>Compete across our supported gamemodes.</p>
-                        <div class="mini-tier">HT1 – LT5</div>
-                    </div>
-
-                    <div class="mini-card">
-                        <div class="mini-label">HOW TO START</div>
-                        <h3>GET<br>TESTED</h3>
-                        <p>Verify your account and get ready for testing.</p>
-                        <a href="verify.html" class="mini-tier">Start →</a>
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="verified-message" id="verified-message">
-                ✓ Your Minecraft account has been verified!
-                Welcome to VIPTIERS.
-            </div>
-
-            <div class="search-card">
-
-                <h2>Find a Player</h2>
-
-                <p>
-                    Search for a Minecraft player to view their VIPTIERS profile.
-                </p>
-
-                <div class="search">
-
-                    <input
-                        id="username"
-                        type="text"
-                        placeholder="Enter Minecraft username"
-                        maxlength="16"
-                        autocomplete="off"
-                        onkeydown="if(event.key === 'Enter') searchPlayer()"
-                    >
-
-                    <button onclick="searchPlayer()">
-                        Search Player →
-                    </button>
-
-                </div>
-
-                <div id="result"></div>
-
-            </div>
-
-        </section>
-
-        <section class="community">
-
-            <div>
-                <h2>Join the VIPTIERS Community</h2>
-
-                <p>
-                    Meet competitive Minecraft players, get tier tested
-                    and stay updated with VIPTIERS events and announcements.
-                </p>
-            </div>
-
-            <a
-                href="https://discord.gg/Mj2uPq5Hb"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="discord-button"
-            >
-                Join Discord →
+            <a href="https://discord.gg/Mj2uPq5Hb"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="primary-button">
+                Join Our Discord →
             </a>
+        </div>
+    </section>
 
-        </section>
-
-        <section class="section" id="tiers">
-
-            <div class="section-heading">
-                <h2>Gamemode Rankings <span>●</span></h2>
-                <p>10 supported gamemodes</p>
-            </div>
-
-            <div class="cards">
-
-                <div class="card">
-                    <div class="card-icon">C</div>
-                    <h3>Crystal</h3>
-                    <p>Crystal PvP rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">U</div>
-                    <h3>UHC</h3>
-                    <p>UHC rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">P</div>
-                    <h3>Pot</h3>
-                    <p>Pot PvP rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">N</div>
-                    <h3>NethOP</h3>
-                    <p>NethOP rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">D</div>
-                    <h3>DiaSMP</h3>
-                    <p>DiaSMP rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">S</div>
-                    <h3>Sword</h3>
-                    <p>Sword rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">A</div>
-                    <h3>Axe</h3>
-                    <p>Axe rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">M</div>
-                    <h3>Mace</h3>
-                    <p>Mace rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">SM</div>
-                    <h3>Spear Mace</h3>
-                    <p>Spear Mace rankings</p>
-                </div>
-
-                <div class="card">
-                    <div class="card-icon">C</div>
-                    <h3>Cart</h3>
-                    <p>Cart rankings</p>
-                </div>
-
-            </div>
-
-        </section>
-
-        <section class="section" id="how">
-
-            <div class="section-heading">
-                <h2>How to Get Tested <span>●</span></h2>
-            </div>
-
-            <div class="steps">
-
-                <div class="step">
-                    <div class="step-number">01</div>
-                    <h3>Verify Your Account</h3>
-                    <p>
-                        Connect your Minecraft username through the VIPTIERS
-                        verification process.
-                    </p>
-                </div>
-
-                <div class="step">
-                    <div class="step-number">02</div>
-                    <h3>Request a Test</h3>
-                    <p>
-                        Follow the testing process to request a test
-                        for your preferred gamemode.
-                    </p>
-                </div>
-
-                <div class="step">
-                    <div class="step-number">03</div>
-                    <h3>Get Your Tier</h3>
-                    <p>
-                        Once your test is completed, your profile can
-                        display your assigned tier.
-                    </p>
-                </div>
-
-            </div>
-
-        </section>
-
-        <section class="section" id="team">
-
-            <div class="team-box">
-                <h2>Meet the VIPTIERS Team</h2>
-
-                <p>
-                    Our testing team helps evaluate players across
-                    different Minecraft PvP gamemodes. Players can
-                    follow their tier progress through their profiles.
-                </p>
-
-                <a href="https://discord.gg/Mj2uPq5Hb"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   class="primary-button">
-                    Join Our Discord →
-                </a>
-            </div>
-
-        </section>
-
-    </div>
+</div>
 </main>
 
 <footer>
@@ -877,128 +771,214 @@
 </footer>
 
 <script>
-    const API_URL = "https://viptiers.onrender.com";
+const API_URL = "https://viptiers.onrender.com";
 
-    // Check whether the saved player is verified
-    async function updateAccountNav() {
+/* CHECK VERIFIED ACCOUNT */
+async function updateAccountNav() {
+    const nav = document.getElementById("account-nav");
+    const message = document.getElementById("verified-message");
+    const username = localStorage.getItem("viptiers_username");
 
-        const nav = document.getElementById("account-nav");
-        const message = document.getElementById("verified-message");
-
-        const username = localStorage.getItem("viptiers_username");
-
-        // No saved username: show Sign In
-        if (!username) {
-            nav.innerHTML = `
-                <a href="verify.html" class="nav-button">Sign In</a>
-            `;
-            return;
-        }
-
-        try {
-
-            const response = await fetch(
-                `${API_URL}/api/verification/player/${encodeURIComponent(username)}`
-            );
-
-            if (!response.ok) {
-                throw new Error("Player not found");
-            }
-
-            const result = await response.json();
-
-            if (result.success === false) {
-                throw new Error("Player not verified");
-            }
-
-            // Backend confirmed the player
-            const player =
-                result.data?.player ||
-                result.player ||
-                result.data ||
-                result;
-
-            if (
-                !player.username ||
-                player.username.toLowerCase() !== username.toLowerCase()
-            ) {
-                throw new Error("Verification could not be confirmed");
-            }
-
-            // Replace Sign In with My Profile
-            nav.innerHTML = "";
-
-            const profileLink = document.createElement("a");
-            profileLink.href =
-                "player.html?username=" + encodeURIComponent(player.username);
-            profileLink.className = "nav-button";
-            profileLink.textContent = "My Profile ✓";
-
-            const verifiedLabel = document.createElement("span");
-            verifiedLabel.className = "verified-label";
-            verifiedLabel.textContent = "VERIFIED";
-
-            nav.appendChild(profileLink);
-            nav.appendChild(verifiedLabel);
-
-            message.style.display = "block";
-
-        } catch (error) {
-
-            // Don't show a verified status if the backend cannot confirm it.
-            // Keep the saved username so it can be checked again later.
-            nav.innerHTML = `
-                <a href="verify.html" class="nav-button">Sign In</a>
-            `;
-
-            console.log("Verification check unavailable:", error);
-        }
+    if (!username) {
+        nav.innerHTML = `<a href="verify.html" class="nav-button">Sign In</a>`;
+        return;
     }
 
+    try {
+        const response = await fetch(
+            `${API_URL}/api/verification/player/${encodeURIComponent(username)}`
+        );
 
-    // Open the previously verified player's profile
-    function openMyProfile() {
+        if (!response.ok) throw new Error("Player not found");
 
-        const username = localStorage.getItem("viptiers_username");
+        const result = await response.json();
+        if (result.success === false) throw new Error("Player not verified");
 
-        if (!username) {
-            window.location.href = "verify.html";
-            return;
+        const player =
+            result.data?.player ||
+            result.player ||
+            result.data ||
+            result;
+
+        if (!player.username ||
+            player.username.toLowerCase() !== username.toLowerCase()) {
+            throw new Error("Verification could not be confirmed");
         }
 
-        window.location.href =
-            "player.html?username=" + encodeURIComponent(username);
+        nav.innerHTML = "";
+
+        const profileLink = document.createElement("a");
+        profileLink.href = "player.html?username=" + encodeURIComponent(player.username);
+        profileLink.className = "nav-button";
+        profileLink.textContent = "My Profile ✓";
+
+        const verifiedLabel = document.createElement("span");
+        verifiedLabel.className = "verified-label";
+        verifiedLabel.textContent = "VERIFIED";
+
+        nav.appendChild(profileLink);
+        nav.appendChild(verifiedLabel);
+        message.style.display = "block";
+
+    } catch (error) {
+        nav.innerHTML = `<a href="verify.html" class="nav-button">Sign In</a>`;
+        console.log("Verification check unavailable:", error);
+    }
+}
+
+/* OPEN MY PROFILE */
+function openMyProfile() {
+    const username = localStorage.getItem("viptiers_username");
+
+    if (!username) {
+        window.location.href = "verify.html";
+        return;
     }
 
+    window.location.href =
+        "player.html?username=" + encodeURIComponent(username);
+}
 
-    // Search for any Minecraft player
-    function searchPlayer() {
+/* SEARCH PLAYERS */
+function searchPlayer() {
+    const username = document.getElementById("username").value.trim();
+    const result = document.getElementById("result");
 
-        const username =
-            document.getElementById("username").value.trim();
-
-        const result =
-            document.getElementById("result");
-
-        if (!username) {
-            result.textContent =
-                "Please enter a Minecraft username.";
-            return;
-        }
-
-        if (!/^[A-Za-z0-9_]{1,16}$/.test(username)) {
-            result.textContent =
-                "Please enter a valid Minecraft username.";
-            return;
-        }
-
-        window.location.href =
-            "player.html?username=" + encodeURIComponent(username);
+    if (!username) {
+        result.textContent = "Please enter a Minecraft username.";
+        return;
     }
 
-    // Run when the homepage opens
-    updateAccountNav();
+    if (!/^[A-Za-z0-9_]{1,16}$/.test(username)) {
+        result.textContent = "Please enter a valid Minecraft username.";
+        return;
+    }
 
+    window.location.href =
+        "player.html?username=" + encodeURIComponent(username);
+}
+
+/* LOAD LIVE RESULTS */
+async function loadLiveResults() {
+    const list = document.getElementById("live-results");
+
+    try {
+        const response = await fetch(`${API_URL}/api/tiers/leaderboard`);
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || "Leaderboard is unavailable.");
+        }
+
+        const players = (data.players || [])
+            .filter(player => player && player.username && player.tier)
+            .sort((a, b) => {
+                const dateA = a.testedAt ? new Date(a.testedAt).getTime() : 0;
+                const dateB = b.testedAt ? new Date(b.testedAt).getTime() : 0;
+                return dateB - dateA;
+            })
+            .slice(0, 5);
+
+        if (!players.length) {
+            list.innerHTML = `
+                <div class="live-state">
+                    No tier results yet.<br>
+                    Players will appear here after their first tier is assigned.
+                </div>`;
+            return;
+        }
+
+        list.innerHTML = players.map((player, index) => {
+            const username = escapeLiveText(player.username);
+            const tier = escapeLiveText(player.tier);
+            const gamemode = escapeLiveText(player.gamemode || "Minecraft PvP");
+            const testedAt = player.testedAt ? new Date(player.testedAt) : null;
+
+            const when = testedAt && !Number.isNaN(testedAt.getTime())
+                ? formatLiveTime(testedAt)
+                : "Test result";
+
+            return `
+                <div class="live-row">
+                    <span class="live-rank">${index + 1}</span>
+                    <div>
+                        <a class="live-player-name"
+                           href="player.html?username=${encodeURIComponent(player.username)}">
+                           ${username}
+                        </a>
+                        <span class="live-player-meta">${gamemode} · ${when}</span>
+                    </div>
+                    <span class="live-tier">${tier}</span>
+                </div>`;
+        }).join("");
+
+    } catch (error) {
+        list.innerHTML = `
+            <div class="live-state">
+                Live results are temporarily unavailable.<br>
+                Please try again in a moment.
+            </div>`;
+        console.log("Live results could not be loaded:", error);
+    }
+}
+
+function escapeLiveText(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[char]);
+}
+
+function formatLiveTime(date) {
+    const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+
+    if (seconds < 60) return "just now";
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
+/* TESTING GUIDE CAROUSEL */
+const testingSlides = Array.from(document.querySelectorAll(".testing-slide"));
+const testingDots = Array.from(document.querySelectorAll(".carousel-dot"));
+let testingSlideIndex = 0;
+
+function showTestingSlide(index) {
+    testingSlideIndex = (index + testingSlides.length) % testingSlides.length;
+
+    testingSlides.forEach((slide, i) => {
+        slide.classList.toggle("active", i === testingSlideIndex);
+    });
+
+    testingDots.forEach((dot, i) => {
+        dot.classList.toggle("active", i === testingSlideIndex);
+    });
+}
+
+document.getElementById("carousel-prev").addEventListener("click", () => {
+    showTestingSlide(testingSlideIndex - 1);
+});
+
+document.getElementById("carousel-next").addEventListener("click", () => {
+    showTestingSlide(testingSlideIndex + 1);
+});
+
+testingDots.forEach((dot, index) => {
+    dot.addEventListener("click", () => showTestingSlide(index));
+});
+
+/* START HOMEPAGE */
+updateAccountNav();
+loadLiveResults();
 </script>
 
 </body>
