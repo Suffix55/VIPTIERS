@@ -14,14 +14,33 @@ const pendingCodes = new Map();
 const verifiedPlayers = new Map();
 const usernameCooldowns = new Map();
 
+const GAMEMODES = [
+    "Crystal",
+    "UHC",
+    "Pot",
+    "NethOP",
+    "DiaSMP",
+    "Sword",
+    "Axe",
+    "Mace",
+    "Spear Mace",
+    "Cart"
+];
+
 app.use((req, res, next) => {
     const origin = req.headers.origin;
 
     if (origin === WEBSITE_ORIGIN) {
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Vary", "Origin");
-        res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+        res.setHeader(
+            "Access-Control-Allow-Methods",
+            "GET, POST, DELETE, OPTIONS"
+        );
+        res.setHeader(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization"
+        );
     }
 
     if (req.method === "OPTIONS") {
@@ -35,7 +54,9 @@ function authenticate(req, res, next) {
     const supplied = req.headers.authorization || "";
 
     if (!API_SECRET || supplied !== `Bearer ${API_SECRET}`) {
-        return res.status(401).json({ error: "Unauthorized" });
+        return res.status(401).json({
+            error: "Unauthorized"
+        });
     }
 
     next();
@@ -57,8 +78,24 @@ function cleanExpiredCodes() {
     const now = Date.now();
 
     for (const [code, entry] of pendingCodes) {
-        if (entry.expiresAt <= now) pendingCodes.delete(code);
+        if (entry.expiresAt <= now) {
+            pendingCodes.delete(code);
+        }
     }
+}
+
+function createGamemodes() {
+    const result = {};
+
+    for (const mode of GAMEMODES) {
+        result[mode] = {
+            tested: false,
+            tier: null,
+            testedAt: null
+        };
+    }
+
+    return result;
 }
 
 function findPlayerByUsername(username) {
@@ -75,7 +112,10 @@ function findPlayerByUsername(username) {
 
 // Health check
 app.get("/", (req, res) => {
-    res.json({ name: "VIPTIERS", status: "online" });
+    res.json({
+        name: "VIPTIERS",
+        status: "online"
+    });
 });
 
 // Website requests a verification code
@@ -116,87 +156,107 @@ app.post("/api/verification/start", (req, res) => {
     });
 });
 
-// Plugin completes verification
-app.post("/api/verification/complete", authenticate, (req, res) => {
-    cleanExpiredCodes();
+// Minecraft plugin completes verification
+app.post(
+    "/api/verification/complete",
+    authenticate,
+    (req, res) => {
+        cleanExpiredCodes();
 
-    const uuid = String(req.body.uuid || "");
-    const username = String(req.body.username || "").trim();
-    const code = String(req.body.code || "");
+        const uuid = String(req.body.uuid || "");
+        const username = String(req.body.username || "").trim();
+        const code = String(req.body.code || "");
 
-    if (!/^[a-f0-9-]{36}$/i.test(uuid) ||
-        !/^[a-zA-Z0-9_]{3,16}$/.test(username) ||
-        !/^\d{6}$/.test(code)) {
-        return res.status(400).json({
-            error: "Invalid verification details"
+        if (
+            !/^[a-f0-9-]{36}$/i.test(uuid) ||
+            !/^[a-zA-Z0-9_]{3,16}$/.test(username) ||
+            !/^\d{6}$/.test(code)
+        ) {
+            return res.status(400).json({
+                error: "Invalid verification details"
+            });
+        }
+
+        const entry = pendingCodes.get(code);
+
+        if (
+            !entry ||
+            entry.username.toLowerCase() !== username.toLowerCase()
+        ) {
+            return res.status(400).json({
+                error: "Incorrect code or Minecraft username"
+            });
+        }
+
+        pendingCodes.delete(code);
+
+        verifiedPlayers.set(uuid, {
+            username,
+            verifiedAt: Date.now(),
+            gamemodes: createGamemodes()
+        });
+
+        res.json({
+            success: true,
+            verified: true,
+            message: "Your account has been verified!"
         });
     }
+);
 
-    const entry = pendingCodes.get(code);
+// Plugin checks verification status
+app.get(
+    "/api/verification/status/:uuid",
+    authenticate,
+    (req, res) => {
+        const player = verifiedPlayers.get(req.params.uuid);
 
-    if (!entry ||
-        entry.username.toLowerCase() !== username.toLowerCase()) {
-        return res.status(400).json({
-            error: "Incorrect code or Minecraft username"
-        });
-    }
+        if (!player) {
+            return res.status(404).json({
+                error: "Player not verified"
+            });
+        }
 
-    pendingCodes.delete(code);
-
-    verifiedPlayers.set(uuid, {
-        username,
-        verifiedAt: Date.now()
-    });
-
-    res.json({
-        success: true,
-        verified: true,
-        message: "Your account has been verified!"
-    });
-});
-
-// Check verification status by UUID
-app.get("/api/verification/status/:uuid", authenticate, (req, res) => {
-    const player = verifiedPlayers.get(req.params.uuid);
-
-    if (!player) {
-        return res.status(404).json({
-            error: "Player not verified"
-        });
-    }
-
-    res.json({
-        verified: true,
-        username: player.username,
-        verifiedAt: player.verifiedAt
-    });
-});
-
-// Get all verified players
-app.get("/api/verification/players", authenticate, (req, res) => {
-    const players = Array.from(verifiedPlayers.entries()).map(
-        ([uuid, player]) => ({
-            uuid,
+        res.json({
+            verified: true,
+            uuid: req.params.uuid,
             username: player.username,
             verifiedAt: player.verifiedAt
-        })
-    );
+        });
+    }
+);
 
-    res.json({
-        success: true,
-        count: players.length,
-        players
-    });
-});
+// Admin: get all verified players
+app.get(
+    "/api/verification/players",
+    authenticate,
+    (req, res) => {
+        const players = Array.from(
+            verifiedPlayers.entries()
+        ).map(([uuid, player]) => ({
+            uuid,
+            ...player
+        }));
 
-// Get one verified player by username
-app.get("/api/verification/player/:username", authenticate, (req, res) => {
+        res.json({
+            success: true,
+            count: players.length,
+            players
+        });
+    }
+);
+
+// PUBLIC: website loads one player's profile
+// This endpoint intentionally does NOT require the API secret.
+app.get("/api/verification/player/:username", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+
     const username = req.params.username;
-
     const player = findPlayerByUsername(username);
 
     if (!player) {
         return res.status(404).json({
+            success: false,
             error: "Verified player not found"
         });
     }
@@ -207,26 +267,31 @@ app.get("/api/verification/player/:username", authenticate, (req, res) => {
     });
 });
 
-// Revoke a player's verification
-app.delete("/api/verification/player/:username", authenticate, (req, res) => {
-    const username = req.params.username;
+// Admin: revoke a player's verification
+app.delete(
+    "/api/verification/player/:username",
+    authenticate,
+    (req, res) => {
+        const username = req.params.username;
+        const player = findPlayerByUsername(username);
 
-    const player = findPlayerByUsername(username);
+        if (!player) {
+            return res.status(404).json({
+                error: "Verified player not found"
+            });
+        }
 
-    if (!player) {
-        return res.status(404).json({
-            error: "Verified player not found"
+        verifiedPlayers.delete(player.uuid);
+
+        res.json({
+            success: true,
+            message: `${player.username} has been unverified`
         });
     }
-
-    verifiedPlayers.delete(player.uuid);
-
-    res.json({
-        success: true,
-        message: `${player.username} has been unverified`
-    });
-});
+);
 
 app.listen(PORT, () => {
-    console.log(`VIPTIERS backend running on port ${PORT}`);
+    console.log(
+        `VIPTIERS backend running on port ${PORT}`
+    );
 });
