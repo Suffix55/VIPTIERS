@@ -1,1 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIPTIERS | Rankings</title>
 
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;
+    background:#090912;
+    color:#fff;
+    font-family:Arial,sans-serif;
+}
+header{
+    height:75px;
+    padding:0 7%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#10101c;
+    border-bottom:1px solid #29213d;
+}
+.logo{
+    font-size:25px;
+    font-weight:900;
+    color:#b36aff;
+    letter-spacing:2px;
+}
+nav{display:flex;gap:24px}
+nav a{
+    color:#aaa;
+    text-decoration:none;
+    font-size:14px;
+}
+nav a:hover{color:#bd83ff}
+.container{
+    max-width:1150px;
+    margin:55px auto;
+    padding:0 20px;
+}
+.heading{text-align:center;margin-bottom:35px}
+.heading h1{
+    font-size:42px;
+    margin:0 0 12px;
+}
+.heading h1 span{color:#b36aff}
+.heading p{color:#888}
+.controls{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    flex-wrap:wrap;
+    margin-bottom:25px;
+}
+select,button{
+    background:#171525;
+    color:white;
+    border:1px solid #49316b;
+    border-radius:9px;
+    padding:13px 16px;
+    font-size:14px;
+}
+button{
+    background:#8c45d6;
+    border:none;
+    font-weight:bold;
+    cursor:pointer;
+}
+button:hover{background:#a65af2}
+.status{
+    text-align:center;
+    color:#999;
+    margin:20px 0;
+    min-height:22px;
+}
+.table-wrap{
+    overflow-x:auto;
+    background:#11111d;
+    border:1px solid #29213d;
+    border-radius:14px;
+}
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:650px;
+}
+th,td{
+    padding:18px 20px;
+    text-align:left;
+    border-bottom:1px solid #252235;
+}
+th{
+    color:#a77bd5;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+}
+td{color:#ddd;font-size:14px}
+tr:last-child td{border-bottom:none}
+.player{
+    color:white;
+    font-weight:bold;
+    text-decoration:none;
+}
+.player:hover{color:#bd83ff}
+.position{color:#888;font-weight:bold}
+.tier{
+    display:inline-block;
+    padding:7px 12px;
+    border-radius:7px;
+    background:#21172f;
+    color:#c58aff;
+    font-weight:900;
+    border:1px solid #633b8b;
+}
+.empty{
+    text-align:center;
+    padding:55px 20px;
+    color:#888;
+}
+.empty h2{color:white}
+footer{
+    text-align:center;
+    padding:35px 15px;
+    color:#666;
+    border-top:1px solid #211b30;
+    margin-top:70px;
+}
+footer a{color:#b36aff;text-decoration:none}
+@media(max-width:600px){
+    header{padding:0 18px}
+    nav{gap:12px}
+    nav a{font-size:12px}
+    .heading h1{font-size:32px}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">VIPTIERS</div>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="tiers.html">Rankings</a>
+        <a href="index.html#team">Team</a>
+        <a href="https://discord.gg/Mj2uPq5Hb" target="_blank">Discord</a>
+    </nav>
+</header>
+
+<main class="container">
+    <div class="heading">
+        <h1>PLAYER <span>RANKINGS</span></h1>
+        <p>Explore the best players across every VIPTIERS gamemode.</p>
+    </div>
+
+    <div class="controls">
+        <select id="gamemode">
+            <option value="All">All Gamemodes</option>
+            <option value="Crystal">Crystal</option>
+            <option value="UHC">UHC</option>
+            <option value="Pot">Pot</option>
+            <option value="NethOP">NethOP</option>
+            <option value="DiaSMP">DiaSMP</option>
+            <option value="Sword">Sword</option>
+            <option value="Axe">Axe</option>
+            <option value="Mace">Mace</option>
+            <option value="Spear Mace">Spear Mace</option>
+            <option value="Cart">Cart</option>
+        </select>
+        <button id="refresh">Refresh Rankings</button>
+    </div>
+
+    <div class="status" id="status">Loading rankings...</div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Gamemode</th>
+                    <th>Tier</th>
+                    <th>Tested</th>
+                </tr>
+            </thead>
+            <tbody id="rankings">
+                <tr><td colspan="5" class="empty">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<footer>
+    VIPTIERS &copy; 2026 ·
+    <a href="https://discord.gg/Mj2uPq5Hb" target="_blank">Join our Discord</a>
+</footer>
+
+<script>
+const API = "https://viptiers.onrender.com";
+const gamemodeSelect = document.getElementById("gamemode");
+const rankings = document.getElementById("rankings");
+const statusText = document.getElementById("status");
+
+async function loadRankings(){
+    const gamemode = gamemodeSelect.value;
+
+    statusText.textContent = "Loading rankings...";
+    rankings.innerHTML =
+        '<tr><td colspan="5" class="empty">Loading...</td></tr>';
+
+    try{
+        const endpoint = gamemode === "All"
+            ? `${API}/api/tiers/leaderboard`
+            : `${API}/api/tiers/leaderboard?gamemode=${encodeURIComponent(gamemode)}`;
+
+        const response = await fetch(endpoint);
+        const data = await response.json();
+
+        if(!response.ok || !data.success){
+            throw new Error(data.message || "Could not load rankings.");
+        }
+
+        const players = data.players || [];
+
+        if(players.length === 0){
+            rankings.innerHTML = `
+                <tr>
+                    <td colspan="5">
+                        <div class="empty">
+                            <h2>No tiered players yet</h2>
+                            <p>Players will appear here after receiving their first tier.</p>
+                        </div>
+                    </td>
+                </tr>`;
+            statusText.textContent = "No players found.";
+            return;
+        }
+
+        const tierOrder = [
+            "HT1","LT1","HT2","LT2","HT3",
+            "LT3","HT4","LT4","HT5","LT5"
+        ];
+
+        players.sort((a,b) =>
+            tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier)
+        );
+
+        rankings.innerHTML = players.map((player,index) => {
+            const username = escapeHTML(player.username || "Unknown");
+            const tier = escapeHTML(player.tier || "Unranked");
+            const mode = escapeHTML(player.gamemode || gamemode);
+            const tested = player.testedAt
+                ? new Date(player.testedAt).toLocaleDateString()
+                : "—";
+
+            return `
+                <tr>
+                    <td class="position">${index + 1}</td>
+                    <td>
+                        <a class="player"
+                           href="player.html?username=${encodeURIComponent(player.username || "")}">
+                           ${username}
+                        </a>
+                    </td>
+                    <td>${mode}</td>
+                    <td><span class="tier">${tier}</span></td>
+                    <td>${escapeHTML(tested)}</td>
+                </tr>`;
+        }).join("");
+
+        statusText.textContent =
+            `${players.length} ranked player${players.length === 1 ? "" : "s"} found`;
+
+    }catch(error){
+        rankings.innerHTML = `
+            <tr>
+                <td colspan="5">
+                    <div class="empty">
+                        <h2>Unable to load rankings</h2>
+                        <p>${escapeHTML(error.message)}</p>
+                    </div>
+                </td>
+            </tr>`;
+        statusText.textContent = "Please try again.";
+    }
+}
+
+function escapeHTML(value){
+    return String(value).replace(/[&<>"']/g, char => ({
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        '"':"&quot;",
+        "'":"&#39;"
+    })[char]);
+}
+
+gamemodeSelect.addEventListener("change",loadRankings);
+document.getElementById("refresh").addEventListener("click",loadRankings);
+
+loadRankings();
+</script>
+
+</body>
+</html>
