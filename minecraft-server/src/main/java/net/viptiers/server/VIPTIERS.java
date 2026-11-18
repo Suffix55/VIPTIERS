@@ -37,6 +37,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,13 +56,14 @@ public final class VIPTIERS extends JavaPlugin
     private static final String REGION_MENU =
             ChatColor.DARK_PURPLE + "VIPTIERS | Region";
 
-    private final Set<UUID> verifiedPlayers = new HashSet<>();
+    private final Set<UUID> verifiedPlayers =
+            ConcurrentHashMap.newKeySet();
 
     private final Map<UUID, QueueEntry> queuedPlayers =
-            new HashMap<>();
+            new ConcurrentHashMap<>();
 
     private final Map<String, List<UUID>> testingQueues =
-            new HashMap<>();
+            new ConcurrentHashMap<>();
 
     private static final String[] GAMEMODES = {
             "Crystal", "UHC", "Pot", "NethOP", "DiaSMP",
@@ -171,7 +173,7 @@ public final class VIPTIERS extends JavaPlugin
             }
         }
 
-        getLogger().info("VIPTIERS testing and verification enabled!");
+        getLogger().info("VIPTIERS verification and testing enabled!");
     }
 
     private HttpRequest.Builder authenticatedRequest(String url) {
@@ -182,11 +184,14 @@ public final class VIPTIERS extends JavaPlugin
                 .header("Content-Type", "application/json");
     }
 
+    // PLAYER JOIN AND VERIFICATION
+
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
 
-        verifiedPlayers.remove(player.getUniqueId());
+        verifiedPlayers.remove(uuid);
 
         player.setGameMode(GameMode.ADVENTURE);
         player.setInvulnerable(true);
@@ -206,7 +211,7 @@ public final class VIPTIERS extends JavaPlugin
                 + "Checking your account verification...");
         player.sendMessage("");
 
-        checkPlayerStatus(player.getUniqueId());
+        checkPlayerStatus(uuid);
     }
 
     private void checkPlayerStatus(UUID uuid) {
@@ -219,13 +224,15 @@ public final class VIPTIERS extends JavaPlugin
                     if (response.statusCode() == 200
                             && response.body().contains("\"verified\":true")) {
 
-                        verifiedPlayers.add(uuid);
-
-                        runForPlayer(uuid, this::releaseVerifiedPlayer);
+                        runForPlayer(uuid, player -> {
+                            verifiedPlayers.add(uuid);
+                            releaseVerifiedPlayer(player);
+                        });
 
                     } else if (response.statusCode() == 404) {
                         sendPlayerMessage(uuid, ChatColor.YELLOW
                                 + "Visit the VIPTIERS website to get your code.");
+
                         sendPlayerMessage(uuid, ChatColor.GRAY
                                 + "Then enter: " + ChatColor.WHITE
                                 + "/verify <code>");
@@ -285,6 +292,8 @@ public final class VIPTIERS extends JavaPlugin
         player.sendMessage("");
     }
 
+    // COMMAND HANDLER
+
     @Override
     public boolean onCommand(
             CommandSender sender,
@@ -319,6 +328,8 @@ public final class VIPTIERS extends JavaPlugin
 
         return true;
     }
+
+    // TESTING QUEUE COMMAND
 
     private boolean handleTierTest(
             CommandSender sender,
@@ -357,19 +368,23 @@ public final class VIPTIERS extends JavaPlugin
 
             player.sendMessage(ChatColor.YELLOW
                     + "You are already in the testing queue.");
+
             player.sendMessage(ChatColor.GRAY
                     + "Gamemode: " + ChatColor.WHITE + entry.gamemode);
+
             player.sendMessage(ChatColor.GRAY
                     + "Region: " + ChatColor.WHITE + entry.region);
+
             player.sendMessage(ChatColor.GRAY
-                    + "Use " + ChatColor.WHITE + "/tiertest leave"
-                    + ChatColor.GRAY + " to leave.");
+                    + "Use /tiertest leave to leave.");
             return true;
         }
 
         openGamemodeMenu(player);
         return true;
     }
+
+    // GAMEMODE MENU
 
     private void openGamemodeMenu(Player player) {
         Inventory inventory = Bukkit.createInventory(
@@ -394,7 +409,9 @@ public final class VIPTIERS extends JavaPlugin
         ItemStack info = new ItemStack(Material.BOOK);
         ItemMeta infoMeta = info.getItemMeta();
 
-        infoMeta.setDisplayName(ChatColor.YELLOW + "Testing Information");
+        infoMeta.setDisplayName(ChatColor.YELLOW
+                + "Testing Information");
+
         infoMeta.setLore(List.of(
                 ChatColor.GRAY + "Choose a gamemode to continue.",
                 ChatColor.GRAY + "You will select your region next."
@@ -405,6 +422,8 @@ public final class VIPTIERS extends JavaPlugin
 
         player.openInventory(inventory);
     }
+
+    // REGION MENU
 
     private void openRegionMenu(Player player, String gamemode) {
         Inventory inventory = Bukkit.createInventory(
@@ -439,7 +458,9 @@ public final class VIPTIERS extends JavaPlugin
         ItemStack info = new ItemStack(Material.BOOK);
         ItemMeta infoMeta = info.getItemMeta();
 
-        infoMeta.setDisplayName(ChatColor.YELLOW + "Selected Gamemode");
+        infoMeta.setDisplayName(ChatColor.YELLOW
+                + "Selected Gamemode");
+
         infoMeta.setLore(List.of(
                 ChatColor.WHITE + gamemode
         ));
@@ -449,6 +470,8 @@ public final class VIPTIERS extends JavaPlugin
 
         player.openInventory(inventory);
     }
+
+    // MENU CLICK HANDLER
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
@@ -488,7 +511,9 @@ public final class VIPTIERS extends JavaPlugin
                     ItemStack info = event.getView()
                             .getTopInventory().getItem(49);
 
-                    if (info == null || !info.hasItemMeta()) {
+                    if (info == null || !info.hasItemMeta()
+                            || info.getItemMeta().getLore() == null
+                            || info.getItemMeta().getLore().isEmpty()) {
                         return;
                     }
 
@@ -502,6 +527,8 @@ public final class VIPTIERS extends JavaPlugin
             }
         }
     }
+
+    // JOIN QUEUE
 
     private void joinQueue(
             Player player,
@@ -529,29 +556,40 @@ public final class VIPTIERS extends JavaPlugin
 
         String queueKey = gamemode + "|" + region;
 
-        testingQueues.computeIfAbsent(
-                queueKey, key -> new ArrayList<>()
-        ).add(uuid);
+        List<UUID> queue = testingQueues.computeIfAbsent(
+                queueKey,
+                key -> Collections.synchronizedList(new ArrayList<>())
+        );
 
-        int position = testingQueues.get(queueKey).size();
+        queue.add(uuid);
+
+        int position = queue.size();
 
         player.closeInventory();
 
         player.sendMessage("");
         player.sendMessage(ChatColor.LIGHT_PURPLE.toString()
                 + ChatColor.BOLD + "VIPTIERS QUEUE");
+
         player.sendMessage(ChatColor.GRAY
                 + "Gamemode: " + ChatColor.WHITE + gamemode);
+
         player.sendMessage(ChatColor.GRAY
                 + "Region: " + ChatColor.WHITE + region);
+
         player.sendMessage(ChatColor.GRAY
                 + "Queue position: " + ChatColor.WHITE + position);
+
         player.sendMessage(ChatColor.GREEN
                 + "You have joined the testing queue!");
+
         player.sendMessage(ChatColor.GRAY
                 + "Use /tiertest leave to leave the queue.");
+
         player.sendMessage("");
     }
+
+    // LEAVE QUEUE
 
     private void leaveQueue(Player player) {
         UUID uuid = player.getUniqueId();
@@ -564,7 +602,6 @@ public final class VIPTIERS extends JavaPlugin
         }
 
         String queueKey = entry.gamemode + "|" + entry.region;
-
         List<UUID> queue = testingQueues.get(queueKey);
 
         if (queue != null) {
@@ -578,6 +615,8 @@ public final class VIPTIERS extends JavaPlugin
         player.sendMessage(ChatColor.YELLOW
                 + "You have left the testing queue.");
     }
+
+    // VERIFY COMMAND
 
     private boolean handleVerify(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -617,7 +656,14 @@ public final class VIPTIERS extends JavaPlugin
                                 + "Your account has been verified! "
                                 + "Reconnect to enter VIPTIERS.");
 
-                        runForPlayer(uuid, Player::kickPlayer);
+                        runForPlayer(uuid, onlinePlayer ->
+                                onlinePlayer.kickPlayer(
+                                        ChatColor.GREEN
+                                                + "Your account has been verified! "
+                                                + "Reconnect to enter VIPTIERS."
+                                )
+                        );
+
                     } else {
                         sendPlayerMessage(uuid, ChatColor.RED
                                 + "Incorrect or expired verification code.");
@@ -635,6 +681,8 @@ public final class VIPTIERS extends JavaPlugin
 
         return true;
     }
+
+    // LIST VERIFIED PLAYERS
 
     private void listVerified(CommandSender sender) {
         sender.sendMessage(ChatColor.LIGHT_PURPLE.toString()
@@ -679,6 +727,7 @@ public final class VIPTIERS extends JavaPlugin
 
                         if (uuidMatcher.find() && nameMatcher.find()) {
                             number++;
+
                             result.append(ChatColor.GRAY)
                                     .append(number)
                                     .append(". ")
@@ -718,6 +767,8 @@ public final class VIPTIERS extends JavaPlugin
                     return null;
                 });
     }
+
+    // PLAYER INFORMATION
 
     private void playerInfo(CommandSender sender, String[] args) {
         if (args.length != 1
@@ -780,6 +831,8 @@ public final class VIPTIERS extends JavaPlugin
                 });
     }
 
+    // UNVERIFY PLAYER
+
     private void unverifyPlayer(CommandSender sender, String[] args) {
         if (args.length != 1
                 || !args[0].matches("[a-zA-Z0-9_]{3,16}")) {
@@ -800,14 +853,20 @@ public final class VIPTIERS extends JavaPlugin
                         sendSenderMessage(sender, ChatColor.GREEN
                                 + username + " has been unverified.");
 
-                        Player online = Bukkit.getPlayerExact(username);
+                        Bukkit.getScheduler().runTask(this, () -> {
+                            Player online = Bukkit.getPlayerExact(username);
 
-                        if (online != null) {
-                            verifiedPlayers.remove(online.getUniqueId());
-                            leaveQueueIfQueued(online.getUniqueId());
-                            online.kickPlayer(ChatColor.RED
-                                    + "Your VIPTIERS verification was revoked.");
-                        }
+                            if (online != null) {
+                                UUID uuid = online.getUniqueId();
+
+                                verifiedPlayers.remove(uuid);
+                                leaveQueueIfQueued(uuid);
+
+                                online.kickPlayer(ChatColor.RED
+                                        + "Your VIPTIERS verification was revoked.");
+                            }
+                        });
+
                     } else if (response.statusCode() == 404) {
                         sendSenderMessage(sender, ChatColor.RED
                                 + "That player is not verified.");
@@ -842,6 +901,8 @@ public final class VIPTIERS extends JavaPlugin
         }
     }
 
+    // MAIN THREAD HELPERS
+
     private void sendPlayerMessage(UUID uuid, String message) {
         runForPlayer(uuid, player -> player.sendMessage(message));
     }
@@ -864,6 +925,8 @@ public final class VIPTIERS extends JavaPlugin
             }
         });
     }
+
+    // VERIFICATION WORLD PROTECTION
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
