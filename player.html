@@ -232,7 +232,15 @@
                         new Date(profile.verifiedAt).toLocaleString();
                 }
 
-                // Load the player's actual Minecraft skin
+              // Load the player's real Minecraft face
+skinElement.src =
+    `https://mc-heads.net/avatar/${encodeURIComponent(profile.uuid)}/120`;
+
+skinElement.onerror = () => {
+    skinElement.onerror = null;
+    skinElement.src =
+        `https://crafatar.com/avatars/${encodeURIComponent(profile.uuid)}?size=120&overlay`;
+};
                 skinElement.src =
                     `https://mc-heads.net/body/${encodeURIComponent(profile.uuid)}/160`;
 
