@@ -1,6 +1,5 @@
-
 name: VIPTIERS
-version: 1.2.0
+version: 1.3.0
 main: net.viptiers.server.VIPTIERS
 api-version: '1.21'
 author: VIPTIERS
@@ -26,7 +25,16 @@ commands:
     usage: /unverify <player>
     permission: viptiers.admin
 
+  tiertest:
+    description: Open the VIPTIERS testing menu
+    usage: /tiertest
+    permission: viptiers.test
+
 permissions:
   viptiers.admin:
     description: Access VIPTIERS verification administration
     default: op
+
+  viptiers.test:
+    description: Join the VIPTIERS testing queue
+    default: true
