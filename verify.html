@@ -276,12 +276,16 @@
 
                         clearTimeout(pollTimer);
 
-                        const profileParams = new URLSearchParams({
-                            username: player.username
-                        });
+                       // Remember the verified Minecraft username
+localStorage.setItem("viptiers_username", player.username);
 
-                        window.location.href =
-                            `${PROFILE_URL}?${profileParams.toString()}`;
+// Redirect to the player's profile
+const profileParams = new URLSearchParams({
+    username: player.username
+});
+
+window.location.href =
+    `${PROFILE_URL}?${profileParams.toString()}`;
 
                         return;
                     }
