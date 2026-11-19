@@ -415,6 +415,66 @@ app.post(
     }
 );
 
+// Remove a player's current tier for one gamemode
+app.delete(
+    "/api/tiers/remove",
+    authenticate,
+    (req, res) => {
+        const username = String(req.body.username || "").trim();
+        const gamemode = String(req.body.gamemode || "").trim();
+
+        if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid username"
+            });
+        }
+
+        if (!GAMEMODES.includes(gamemode)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid gamemode"
+            });
+        }
+
+        const player = findPlayerByUsername(username);
+
+        if (!player) {
+            return res.status(404).json({
+                success: false,
+                error: "Verified player not found"
+            });
+        }
+
+        const playerData = verifiedPlayers.get(player.uuid);
+        const modeData = playerData.gamemodes[gamemode];
+
+        if (!modeData || !modeData.tested || !modeData.tier) {
+            return res.status(404).json({
+                success: false,
+                error: "Player has no assigned tier in this gamemode"
+            });
+        }
+
+        const removedTier = modeData.tier;
+
+        modeData.tested = false;
+        modeData.tier = null;
+        modeData.testedAt = null;
+
+        res.json({
+            success: true,
+            message: `${player.username}'s ${gamemode} tier was removed`,
+            player: {
+                username: player.username,
+                uuid: player.uuid,
+                gamemode,
+                removedTier
+            }
+        });
+    }
+);
+
 // Public high tiers leaderboard
 app.get("/api/tiers/leaderboard", (req, res) => {
     res.setHeader("Cache-Control", "no-store");
