@@ -1,17 +1,28 @@
 
 const express = require("express");
 const crypto = require("crypto");
+const { Pool } = require("pg");
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const API_SECRET = process.env.API_SECRET;
+const DATABASE_URL = process.env.DATABASE_URL;
 const WEBSITE_ORIGIN = "https://suffix55.github.io";
 const CODE_LIFETIME = 10 * 60 * 1000;
 
+if (!DATABASE_URL) {
+    console.error("DATABASE_URL is missing!");
+    process.exit(1);
+}
+
+const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
 const pendingCodes = new Map();
-const verifiedPlayers = new Map();
 const usernameCooldowns = new Map();
 
 const GAMEMODES = [
@@ -40,6 +51,26 @@ const TIERS = [
     "LT5"
 ];
 
+// Database setup
+async function initializeDatabase() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS players (
+            uuid TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            verified_at BIGINT NOT NULL,
+            gamemodes JSONB NOT NULL DEFAULT '{}'::jsonb
+        )
+    `);
+
+    await pool.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS players_username_lower_idx
+        ON players (LOWER(username))
+    `);
+
+    console.log("VIPTIERS PostgreSQL database connected!");
+}
+
+// CORS
 app.use((req, res, next) => {
     const origin = req.headers.origin;
 
@@ -63,6 +94,7 @@ app.use((req, res, next) => {
     next();
 });
 
+// Authentication
 function authenticate(req, res, next) {
     const supplied = req.headers.authorization || "";
 
@@ -76,6 +108,7 @@ function authenticate(req, res, next) {
     next();
 }
 
+// Generate verification code
 function generateCode() {
     for (let i = 0; i < 100; i++) {
         const code = crypto.randomInt(0, 1000000)
@@ -88,6 +121,7 @@ function generateCode() {
     throw new Error("Could not generate code");
 }
 
+// Remove expired codes
 function cleanExpiredCodes() {
     const now = Date.now();
 
@@ -98,6 +132,7 @@ function cleanExpiredCodes() {
     }
 }
 
+// Default gamemodes
 function createGamemodes() {
     const result = {};
 
@@ -113,31 +148,36 @@ function createGamemodes() {
     return result;
 }
 
-function findPlayerByUsername(username) {
-    const normalized = username.toLowerCase();
+// Get player by username
+async function findPlayerByUsername(username) {
+    const result = await pool.query(
+        `SELECT * FROM players WHERE LOWER(username) = LOWER($1)`,
+        [username]
+    );
 
-    for (const [uuid, player] of verifiedPlayers) {
-        if (player.username.toLowerCase() === normalized) {
-            return { uuid, ...player };
-        }
-    }
-
-    return null;
+    return result.rows[0] || null;
 }
 
-function getLeaderboard(gamemode = null) {
+// Get leaderboard
+async function getLeaderboard(gamemode = null) {
+    const result = await pool.query(
+        "SELECT uuid, username, gamemodes FROM players"
+    );
+
     const players = [];
 
-    for (const [uuid, player] of verifiedPlayers) {
+    for (const player of result.rows) {
+        const modes = player.gamemodes || {};
+
         for (const mode of GAMEMODES) {
             if (gamemode && mode !== gamemode) continue;
 
-            const data = player.gamemodes[mode];
+            const data = modes[mode];
 
             if (!data || !data.tested || !data.tier) continue;
 
             players.push({
-                uuid,
+                uuid: player.uuid,
                 username: player.username,
                 tier: data.tier,
                 gamemode: mode,
@@ -147,10 +187,10 @@ function getLeaderboard(gamemode = null) {
     }
 
     players.sort((a, b) => {
-        const tierDifference =
+        const difference =
             TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier);
 
-        if (tierDifference !== 0) return tierDifference;
+        if (difference !== 0) return difference;
 
         return a.username.localeCompare(b.username);
     });
@@ -165,7 +205,8 @@ function getLeaderboard(gamemode = null) {
 app.get("/", (req, res) => {
     res.json({
         name: "VIPTIERS",
-        status: "online"
+        status: "online",
+        database: "PostgreSQL"
     });
 });
 
@@ -213,7 +254,7 @@ app.post("/api/verification/start", (req, res) => {
 app.post(
     "/api/verification/complete",
     authenticate,
-    (req, res) => {
+    async (req, res) => {
         cleanExpiredCodes();
 
         const uuid = String(req.body.uuid || "")
@@ -246,21 +287,55 @@ app.post(
             });
         }
 
-        pendingCodes.delete(code);
+        try {
+            const existing = await pool.query(
+                "SELECT * FROM players WHERE uuid = $1",
+                [uuid]
+            );
 
-        const existing = verifiedPlayers.get(uuid);
+            const existingPlayer = existing.rows[0];
 
-        verifiedPlayers.set(uuid, {
-            username,
-            verifiedAt: existing?.verifiedAt || Date.now(),
-            gamemodes: existing?.gamemodes || createGamemodes()
-        });
+            const usernameOwner = await findPlayerByUsername(username);
 
-        res.json({
-            success: true,
-            verified: true,
-            message: "Your account has been verified!"
-        });
+            if (usernameOwner && usernameOwner.uuid !== uuid) {
+                return res.status(409).json({
+                    success: false,
+                    error: "This username is already linked to another account"
+                });
+            }
+
+            const verifiedAt = existingPlayer
+                ? existingPlayer.verified_at
+                : Date.now();
+
+            const gamemodes = existingPlayer
+                ? existingPlayer.gamemodes
+                : createGamemodes();
+
+            await pool.query(
+                `INSERT INTO players (uuid, username, verified_at, gamemodes)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (uuid)
+                 DO UPDATE SET
+                    username = EXCLUDED.username`,
+                [uuid, username, verifiedAt, JSON.stringify(gamemodes)]
+            );
+
+            pendingCodes.delete(code);
+
+            res.json({
+                success: true,
+                verified: true,
+                message: "Your account has been verified!"
+            });
+        } catch (error) {
+            console.error("Verification error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not complete verification"
+            });
+        }
     }
 );
 
@@ -268,23 +343,45 @@ app.post(
 app.get(
     "/api/verification/status/:uuid",
     authenticate,
-    (req, res) => {
+    async (req, res) => {
         const uuid = req.params.uuid.replace(/-/g, "").toLowerCase();
-        const player = verifiedPlayers.get(uuid);
 
-        if (!player) {
-            return res.status(404).json({
+        if (!/^[a-f0-9]{32}$/.test(uuid)) {
+            return res.status(400).json({
                 verified: false,
-                error: "Player not verified"
+                error: "Invalid UUID"
             });
         }
 
-        res.json({
-            verified: true,
-            uuid,
-            username: player.username,
-            verifiedAt: player.verifiedAt
-        });
+        try {
+            const result = await pool.query(
+                "SELECT * FROM players WHERE uuid = $1",
+                [uuid]
+            );
+
+            const player = result.rows[0];
+
+            if (!player) {
+                return res.status(404).json({
+                    verified: false,
+                    error: "Player not verified"
+                });
+            }
+
+            res.json({
+                verified: true,
+                uuid,
+                username: player.username,
+                verifiedAt: Number(player.verified_at)
+            });
+        } catch (error) {
+            console.error("Status error:", error);
+
+            res.status(500).json({
+                verified: false,
+                error: "Database error"
+            });
+        }
     }
 );
 
@@ -292,47 +389,41 @@ app.get(
 app.get(
     "/api/verification/players",
     authenticate,
-    (req, res) => {
-        const players = Array.from(
-            verifiedPlayers.entries()
-        ).map(([uuid, player]) => ({
-            uuid,
-            ...player
-        }));
+    async (req, res) => {
+        try {
+            const result = await pool.query(
+                "SELECT * FROM players ORDER BY username"
+            );
 
-        res.json({
-            success: true,
-            count: players.length,
-            players
-        });
+            const players = result.rows.map(player => ({
+                uuid: player.uuid,
+                username: player.username,
+                verifiedAt: Number(player.verified_at),
+                gamemodes: player.gamemodes
+            }));
+
+            res.json({
+                success: true,
+                count: players.length,
+                players
+            });
+        } catch (error) {
+            console.error("Players error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Database error"
+            });
+        }
     }
 );
 
 // Public player profile
-app.get("/api/verification/player/:username", (req, res) => {
+app.get("/api/verification/player/:username", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
 
-    const player = findPlayerByUsername(req.params.username);
-
-    if (!player) {
-        return res.status(404).json({
-            success: false,
-            error: "Verified player not found"
-        });
-    }
-
-    res.json({
-        success: true,
-        player
-    });
-});
-
-// Revoke verification
-app.delete(
-    "/api/verification/player/:username",
-    authenticate,
-    (req, res) => {
-        const player = findPlayerByUsername(req.params.username);
+    try {
+        const player = await findPlayerByUsername(req.params.username);
 
         if (!player) {
             return res.status(404).json({
@@ -341,12 +432,57 @@ app.delete(
             });
         }
 
-        verifiedPlayers.delete(player.uuid);
-
         res.json({
             success: true,
-            message: `${player.username} has been unverified`
+            player: {
+                uuid: player.uuid,
+                username: player.username,
+                verifiedAt: Number(player.verified_at),
+                gamemodes: player.gamemodes
+            }
         });
+    } catch (error) {
+        console.error("Profile error:", error);
+
+        res.status(500).json({
+            success: false,
+            error: "Database error"
+        });
+    }
+});
+
+// Revoke verification
+app.delete(
+    "/api/verification/player/:username",
+    authenticate,
+    async (req, res) => {
+        try {
+            const player = await findPlayerByUsername(req.params.username);
+
+            if (!player) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Verified player not found"
+                });
+            }
+
+            await pool.query(
+                "DELETE FROM players WHERE uuid = $1",
+                [player.uuid]
+            );
+
+            res.json({
+                success: true,
+                message: `${player.username} has been unverified`
+            });
+        } catch (error) {
+            console.error("Unverify error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Database error"
+            });
+        }
     }
 );
 
@@ -354,7 +490,7 @@ app.delete(
 app.post(
     "/api/tiers/assign",
     authenticate,
-    (req, res) => {
+    async (req, res) => {
         const username = String(req.body.username || "").trim();
         const gamemode = String(req.body.gamemode || "").trim();
         const tier = String(req.body.tier || "").toUpperCase().trim();
@@ -380,46 +516,70 @@ app.post(
             });
         }
 
-        const player = findPlayerByUsername(username);
+        try {
+            const player = await findPlayerByUsername(username);
 
-        if (!player) {
-            return res.status(404).json({
-                success: false,
-                error: "Player is not verified"
-            });
-        }
+            if (!player) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Player is not verified"
+                });
+            }
 
-        const playerData = verifiedPlayers.get(player.uuid);
-        const modeData = playerData.gamemodes[gamemode];
+            const gamemodes = player.gamemodes || createGamemodes();
 
-        modeData.tested = true;
-        modeData.tier = tier;
-        modeData.testedAt = Date.now();
+            if (!gamemodes[gamemode]) {
+                gamemodes[gamemode] = {
+                    tested: false,
+                    tier: null,
+                    testedAt: null,
+                    history: []
+                };
+            }
 
-        modeData.history.push({
-            tier,
-            testedAt: modeData.testedAt
-        });
+            const modeData = gamemodes[gamemode];
 
-        res.json({
-            success: true,
-            message: `${player.username} received ${tier} in ${gamemode}`,
-            player: {
-                username: player.username,
-                uuid: player.uuid,
-                gamemode,
+            modeData.tested = true;
+            modeData.tier = tier;
+            modeData.testedAt = Date.now();
+
+            modeData.history.push({
                 tier,
                 testedAt: modeData.testedAt
-            }
-        });
+            });
+
+            await pool.query(
+                "UPDATE players SET gamemodes = $1 WHERE uuid = $2",
+                [JSON.stringify(gamemodes), player.uuid]
+            );
+
+            res.json({
+                success: true,
+                message: `${player.username} received ${tier} in ${gamemode}`,
+                player: {
+                    username: player.username,
+                    uuid: player.uuid,
+                    gamemode,
+                    tier,
+                    testedAt: modeData.testedAt
+                }
+            });
+        } catch (error) {
+            console.error("Tier assignment error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Database error"
+            });
+        }
     }
 );
 
-// Remove a player's current tier for one gamemode
+// Remove a player's current tier
 app.delete(
     "/api/tiers/remove",
     authenticate,
-    (req, res) => {
+    async (req, res) => {
         const username = String(req.body.username || "").trim();
         const gamemode = String(req.body.gamemode || "").trim();
 
@@ -437,46 +597,60 @@ app.delete(
             });
         }
 
-        const player = findPlayerByUsername(username);
+        try {
+            const player = await findPlayerByUsername(username);
 
-        if (!player) {
-            return res.status(404).json({
-                success: false,
-                error: "Verified player not found"
-            });
-        }
-
-        const playerData = verifiedPlayers.get(player.uuid);
-        const modeData = playerData.gamemodes[gamemode];
-
-        if (!modeData || !modeData.tested || !modeData.tier) {
-            return res.status(404).json({
-                success: false,
-                error: "Player has no assigned tier in this gamemode"
-            });
-        }
-
-        const removedTier = modeData.tier;
-
-        modeData.tested = false;
-        modeData.tier = null;
-        modeData.testedAt = null;
-
-        res.json({
-            success: true,
-            message: `${player.username}'s ${gamemode} tier was removed`,
-            player: {
-                username: player.username,
-                uuid: player.uuid,
-                gamemode,
-                removedTier
+            if (!player) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Verified player not found"
+                });
             }
-        });
+
+            const gamemodes = player.gamemodes || {};
+            const modeData = gamemodes[gamemode];
+
+            if (!modeData || !modeData.tested || !modeData.tier) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Player has no assigned tier in this gamemode"
+                });
+            }
+
+            const removedTier = modeData.tier;
+
+            modeData.tested = false;
+            modeData.tier = null;
+            modeData.testedAt = null;
+
+            await pool.query(
+                "UPDATE players SET gamemodes = $1 WHERE uuid = $2",
+                [JSON.stringify(gamemodes), player.uuid]
+            );
+
+            res.json({
+                success: true,
+                message: `${player.username}'s ${gamemode} tier was removed`,
+                player: {
+                    username: player.username,
+                    uuid: player.uuid,
+                    gamemode,
+                    removedTier
+                }
+            });
+        } catch (error) {
+            console.error("Tier removal error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Database error"
+            });
+        }
     }
 );
 
-// Public high tiers leaderboard
-app.get("/api/tiers/leaderboard", (req, res) => {
+// Public leaderboard
+app.get("/api/tiers/leaderboard", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
 
     const gamemode = req.query.gamemode
@@ -491,18 +665,27 @@ app.get("/api/tiers/leaderboard", (req, res) => {
         });
     }
 
-    const players = getLeaderboard(gamemode);
+    try {
+        const players = await getLeaderboard(gamemode);
 
-    res.json({
-        success: true,
-        count: players.length,
-        gamemode: gamemode || "All",
-        tiers: TIERS,
-        players
-    });
+        res.json({
+            success: true,
+            count: players.length,
+            gamemode: gamemode || "All",
+            tiers: TIERS,
+            players
+        });
+    } catch (error) {
+        console.error("Leaderboard error:", error);
+
+        res.status(500).json({
+            success: false,
+            error: "Database error"
+        });
+    }
 });
 
-// Public list of supported gamemodes and tiers
+// Public gamemode and tier information
 app.get("/api/tiers/info", (req, res) => {
     res.json({
         success: true,
@@ -511,6 +694,18 @@ app.get("/api/tiers/info", (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`VIPTIERS backend running on port ${PORT}`);
-});
+// Start server after database connection
+async function startServer() {
+    try {
+        await initializeDatabase();
+
+        app.listen(PORT, () => {
+            console.log(`VIPTIERS backend running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error("Could not start VIPTIERS backend:", error);
+        process.exit(1);
+    }
+}
+
+startServer();
