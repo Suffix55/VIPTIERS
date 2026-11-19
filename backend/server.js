@@ -4,13 +4,16 @@ const crypto = require("crypto");
 const { Pool } = require("pg");
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "100kb" }));
 
 const PORT = process.env.PORT || 3000;
 const API_SECRET = process.env.API_SECRET;
 const DATABASE_URL = process.env.DATABASE_URL;
 const WEBSITE_ORIGIN = "https://suffix55.github.io";
+
 const CODE_LIFETIME = 10 * 60 * 1000;
+const LINK_CODE_LIFETIME = 5 * 60 * 1000;
+const MAX_QUEUE_SIZE = 10;
 
 if (!DATABASE_URL) {
     console.error("DATABASE_URL is missing!");
@@ -51,7 +54,29 @@ const TIERS = [
     "LT5"
 ];
 
-// Database setup
+// Only these HT promotion paths are allowed.
+const HT_PATHS = {
+    LT3: "HT3",
+    HT3: "LT2",
+    LT2: "HT2",
+    HT2: "LT1",
+    LT1: "HT1"
+};
+
+const TESTER_ROLES = {
+    ht: ["headTester", "seniorTester"],
+    normal: [
+        "headTester",
+        "seniorTester",
+        "tester",
+        "trialTester"
+    ]
+};
+
+// --------------------------------------------------
+// DATABASE
+// --------------------------------------------------
+
 async function initializeDatabase() {
     await pool.query(`
         CREATE TABLE IF NOT EXISTS players (
@@ -67,20 +92,71 @@ async function initializeDatabase() {
         ON players (LOWER(username))
     `);
 
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS discord_links (
+            uuid TEXT PRIMARY KEY REFERENCES players(uuid) ON DELETE CASCADE,
+            discord_id TEXT UNIQUE NOT NULL,
+            linked_at BIGINT NOT NULL
+        )
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS link_codes (
+            code TEXT PRIMARY KEY,
+            uuid TEXT NOT NULL REFERENCES players(uuid) ON DELETE CASCADE,
+            expires_at BIGINT NOT NULL
+        )
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS queue_entries (
+            id BIGSERIAL PRIMARY KEY,
+            uuid TEXT NOT NULL REFERENCES players(uuid) ON DELETE CASCADE,
+            queue_type TEXT NOT NULL
+                CHECK (queue_type IN ('normal', 'ht')),
+            gamemode TEXT NOT NULL,
+            current_tier TEXT,
+            target_tier TEXT,
+            joined_at BIGINT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'waiting'
+                CHECK (status IN ('waiting', 'testing', 'completed')),
+            tester_discord_id TEXT,
+            ticket_channel_id TEXT
+        )
+    `);
+
+    // A player can only have one waiting/testing entry.
+    await pool.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS queue_one_active_per_player
+        ON queue_entries(uuid)
+        WHERE status IN ('waiting', 'testing')
+    `);
+
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS queue_waiting_lookup
+        ON queue_entries(queue_type, gamemode, joined_at)
+        WHERE status = 'waiting'
+    `);
+
     console.log("VIPTIERS PostgreSQL database connected!");
 }
 
+// --------------------------------------------------
 // CORS
+// --------------------------------------------------
+
 app.use((req, res, next) => {
     const origin = req.headers.origin;
 
     if (origin === WEBSITE_ORIGIN) {
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Vary", "Origin");
+
         res.setHeader(
             "Access-Control-Allow-Methods",
             "GET, POST, DELETE, OPTIONS"
         );
+
         res.setHeader(
             "Access-Control-Allow-Headers",
             "Content-Type, Authorization"
@@ -94,7 +170,10 @@ app.use((req, res, next) => {
     next();
 });
 
-// Authentication
+// --------------------------------------------------
+// AUTHENTICATION
+// --------------------------------------------------
+
 function authenticate(req, res, next) {
     const supplied = req.headers.authorization || "";
 
@@ -108,31 +187,24 @@ function authenticate(req, res, next) {
     next();
 }
 
-// Generate verification code
-function generateCode() {
-    for (let i = 0; i < 100; i++) {
-        const code = crypto.randomInt(0, 1000000)
-            .toString()
-            .padStart(6, "0");
+// --------------------------------------------------
+// HELPERS
+// --------------------------------------------------
 
-        if (!pendingCodes.has(code)) return code;
-    }
-
-    throw new Error("Could not generate code");
+function validUsername(username) {
+    return /^[a-zA-Z0-9_]{3,16}$/.test(username);
 }
 
-// Remove expired codes
-function cleanExpiredCodes() {
-    const now = Date.now();
-
-    for (const [code, entry] of pendingCodes) {
-        if (entry.expiresAt <= now) {
-            pendingCodes.delete(code);
-        }
-    }
+function validUUID(uuid) {
+    return /^[a-f0-9]{32}$/.test(uuid);
 }
 
-// Default gamemodes
+function normalizeUUID(uuid) {
+    return String(uuid || "")
+        .replace(/-/g, "")
+        .toLowerCase();
+}
+
 function createGamemodes() {
     const result = {};
 
@@ -148,17 +220,77 @@ function createGamemodes() {
     return result;
 }
 
-// Get player by username
 async function findPlayerByUsername(username) {
     const result = await pool.query(
-        `SELECT * FROM players WHERE LOWER(username) = LOWER($1)`,
+        `SELECT * FROM players
+         WHERE LOWER(username) = LOWER($1)`,
         [username]
     );
 
     return result.rows[0] || null;
 }
 
-// Get leaderboard
+async function findPlayerByDiscordId(discordId) {
+    const result = await pool.query(
+        `SELECT p.*
+         FROM players p
+         INNER JOIN discord_links d ON d.uuid = p.uuid
+         WHERE d.discord_id = $1`,
+        [String(discordId)]
+    );
+
+    return result.rows[0] || null;
+}
+
+async function resolveQueuePlayer(body) {
+    if (body.uuid) {
+        const uuid = normalizeUUID(body.uuid);
+
+        if (!validUUID(uuid)) {
+            throw new Error("Invalid Minecraft UUID");
+        }
+
+        const result = await pool.query(
+            "SELECT * FROM players WHERE uuid = $1",
+            [uuid]
+        );
+
+        return result.rows[0] || null;
+    }
+
+    if (body.discordId) {
+        if (!/^\d{17,20}$/.test(String(body.discordId))) {
+            throw new Error("Invalid Discord ID");
+        }
+
+        return await findPlayerByDiscordId(body.discordId);
+    }
+
+    throw new Error("A Minecraft UUID or linked Discord ID is required");
+}
+
+function validQueueType(type) {
+    return type === "normal" || type === "ht";
+}
+
+function validGamemode(gamemode) {
+    return GAMEMODES.includes(gamemode);
+}
+
+function validHTPath(currentTier, targetTier) {
+    return HT_PATHS[currentTier] === targetTier;
+}
+
+function cleanExpiredCodes() {
+    const now = Date.now();
+
+    for (const [code, entry] of pendingCodes) {
+        if (entry.expiresAt <= now) {
+            pendingCodes.delete(code);
+        }
+    }
+}
+
 async function getLeaderboard(gamemode = null) {
     const result = await pool.query(
         "SELECT uuid, username, gamemodes FROM players"
@@ -201,7 +333,10 @@ async function getLeaderboard(gamemode = null) {
     }));
 }
 
-// Health check
+// --------------------------------------------------
+// HEALTH CHECK
+// --------------------------------------------------
+
 app.get("/", (req, res) => {
     res.json({
         name: "VIPTIERS",
@@ -210,13 +345,28 @@ app.get("/", (req, res) => {
     });
 });
 
-// Start verification
+// --------------------------------------------------
+// VERIFICATION
+// --------------------------------------------------
+
+function generateVerificationCode() {
+    for (let i = 0; i < 100; i++) {
+        const code = crypto.randomInt(0, 1000000)
+            .toString()
+            .padStart(6, "0");
+
+        if (!pendingCodes.has(code)) return code;
+    }
+
+    throw new Error("Could not generate verification code");
+}
+
 app.post("/api/verification/start", (req, res) => {
     cleanExpiredCodes();
 
     const username = String(req.body.username || "").trim();
 
-    if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+    if (!validUsername(username)) {
         return res.status(400).json({
             success: false,
             error: "Invalid Minecraft username"
@@ -233,7 +383,7 @@ app.post("/api/verification/start", (req, res) => {
         });
     }
 
-    const code = generateCode();
+    const code = generateVerificationCode();
 
     pendingCodes.set(code, {
         username,
@@ -250,23 +400,19 @@ app.post("/api/verification/start", (req, res) => {
     });
 });
 
-// Complete Minecraft verification
 app.post(
     "/api/verification/complete",
     authenticate,
     async (req, res) => {
         cleanExpiredCodes();
 
-        const uuid = String(req.body.uuid || "")
-            .replace(/-/g, "")
-            .toLowerCase();
-
+        const uuid = normalizeUUID(req.body.uuid);
         const username = String(req.body.username || "").trim();
         const code = String(req.body.code || "");
 
         if (
-            !/^[a-f0-9]{32}$/.test(uuid) ||
-            !/^[a-zA-Z0-9_]{3,16}$/.test(username) ||
+            !validUUID(uuid) ||
+            !validUsername(username) ||
             !/^\d{6}$/.test(code)
         ) {
             return res.status(400).json({
@@ -294,7 +440,6 @@ app.post(
             );
 
             const existingPlayer = existing.rows[0];
-
             const usernameOwner = await findPlayerByUsername(username);
 
             if (usernameOwner && usernameOwner.uuid !== uuid) {
@@ -316,8 +461,7 @@ app.post(
                 `INSERT INTO players (uuid, username, verified_at, gamemodes)
                  VALUES ($1, $2, $3, $4)
                  ON CONFLICT (uuid)
-                 DO UPDATE SET
-                    username = EXCLUDED.username`,
+                 DO UPDATE SET username = EXCLUDED.username`,
                 [uuid, username, verifiedAt, JSON.stringify(gamemodes)]
             );
 
@@ -339,14 +483,13 @@ app.post(
     }
 );
 
-// Check verification status
 app.get(
     "/api/verification/status/:uuid",
     authenticate,
     async (req, res) => {
-        const uuid = req.params.uuid.replace(/-/g, "").toLowerCase();
+        const uuid = normalizeUUID(req.params.uuid);
 
-        if (!/^[a-f0-9]{32}$/.test(uuid)) {
+        if (!validUUID(uuid)) {
             return res.status(400).json({
                 verified: false,
                 error: "Invalid UUID"
@@ -385,7 +528,6 @@ app.get(
     }
 );
 
-// Get all verified players
 app.get(
     "/api/verification/players",
     authenticate,
@@ -418,7 +560,6 @@ app.get(
     }
 );
 
-// Public player profile
 app.get("/api/verification/player/:username", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
 
@@ -451,7 +592,6 @@ app.get("/api/verification/player/:username", async (req, res) => {
     }
 });
 
-// Revoke verification
 app.delete(
     "/api/verification/player/:username",
     authenticate,
@@ -486,7 +626,783 @@ app.delete(
     }
 );
 
-// Assign a tier to a player
+// --------------------------------------------------
+// DISCORD ACCOUNT LINKING
+// --------------------------------------------------
+
+// Minecraft plugin calls this after the player is verified.
+// It supplies the player's actual Minecraft UUID.
+app.post(
+    "/api/link/start",
+    authenticate,
+    async (req, res) => {
+        const uuid = normalizeUUID(req.body.uuid);
+
+        if (!validUUID(uuid)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid Minecraft UUID"
+            });
+        }
+
+        try {
+            const playerResult = await pool.query(
+                "SELECT uuid FROM players WHERE uuid = $1",
+                [uuid]
+            );
+
+            if (!playerResult.rows.length) {
+                return res.status(403).json({
+                    success: false,
+                    error: "Verify your Minecraft account first"
+                });
+            }
+
+            const existingLink = await pool.query(
+                "SELECT discord_id FROM discord_links WHERE uuid = $1",
+                [uuid]
+            );
+
+            if (existingLink.rows.length) {
+                return res.status(409).json({
+                    success: false,
+                    error: "Your Minecraft account is already linked"
+                });
+            }
+
+            await pool.query(
+                "DELETE FROM link_codes WHERE uuid = $1 OR expires_at <= $2",
+                [uuid, Date.now()]
+            );
+
+            const code = crypto.randomInt(0, 100000000)
+                .toString()
+                .padStart(8, "0");
+
+            await pool.query(
+                `INSERT INTO link_codes (code, uuid, expires_at)
+                 VALUES ($1, $2, $3)`,
+                [code, uuid, Date.now() + LINK_CODE_LIFETIME]
+            );
+
+            res.json({
+                success: true,
+                code,
+                expiresIn: LINK_CODE_LIFETIME / 1000,
+                message: "Enter this code using the Discord Link Account button"
+            });
+        } catch (error) {
+            console.error("Link start error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not generate linking code"
+            });
+        }
+    }
+);
+
+// Discord bot calls this after the player enters their code.
+app.post(
+    "/api/link/complete",
+    authenticate,
+    async (req, res) => {
+        const code = String(req.body.code || "").trim();
+        const discordId = String(req.body.discordId || "").trim();
+
+        if (
+            !/^\d{8}$/.test(code) ||
+            !/^\d{17,20}$/.test(discordId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid linking code or Discord ID"
+            });
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query("BEGIN");
+
+            const codeResult = await client.query(
+                `SELECT * FROM link_codes
+                 WHERE code = $1 AND expires_at > $2
+                 FOR UPDATE`,
+                [code, Date.now()]
+            );
+
+            if (!codeResult.rows.length) {
+                await client.query("ROLLBACK");
+
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid or expired linking code"
+                });
+            }
+
+            const uuid = codeResult.rows[0].uuid;
+
+            const existingMinecraftLink = await client.query(
+                "SELECT discord_id FROM discord_links WHERE uuid = $1",
+                [uuid]
+            );
+
+            const existingDiscordLink = await client.query(
+                "SELECT uuid FROM discord_links WHERE discord_id = $1",
+                [discordId]
+            );
+
+            if (existingMinecraftLink.rows.length) {
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    success: false,
+                    error: "This Minecraft account is already linked"
+                });
+            }
+
+            if (existingDiscordLink.rows.length) {
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    success: false,
+                    error: "This Discord account is already linked"
+                });
+            }
+
+            await client.query(
+                `INSERT INTO discord_links (uuid, discord_id, linked_at)
+                 VALUES ($1, $2, $3)`,
+                [uuid, discordId, Date.now()]
+            );
+
+            await client.query(
+                "DELETE FROM link_codes WHERE code = $1",
+                [code]
+            );
+
+            const playerResult = await client.query(
+                "SELECT username FROM players WHERE uuid = $1",
+                [uuid]
+            );
+
+            await client.query("COMMIT");
+
+            res.json({
+                success: true,
+                message: "Discord account linked successfully",
+                username: playerResult.rows[0]?.username || null
+            });
+        } catch (error) {
+            await client.query("ROLLBACK");
+
+            console.error("Link complete error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not link accounts"
+            });
+        } finally {
+            client.release();
+        }
+    }
+);
+
+app.get(
+    "/api/link/status",
+    authenticate,
+    async (req, res) => {
+        const discordId = String(req.query.discordId || "");
+
+        if (!/^\d{17,20}$/.test(discordId)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid Discord ID"
+            });
+        }
+
+        try {
+            const result = await pool.query(
+                `SELECT p.username, p.uuid, d.linked_at
+                 FROM discord_links d
+                 INNER JOIN players p ON p.uuid = d.uuid
+                 WHERE d.discord_id = $1`,
+                [discordId]
+            );
+
+            if (!result.rows.length) {
+                return res.json({
+                    success: true,
+                    linked: false
+                });
+            }
+
+            res.json({
+                success: true,
+                linked: true,
+                player: {
+                    username: result.rows[0].username,
+                    uuid: result.rows[0].uuid,
+                    linkedAt: Number(result.rows[0].linked_at)
+                }
+            });
+        } catch (error) {
+            console.error("Link status error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Database error"
+            });
+        }
+    }
+);
+
+// --------------------------------------------------
+// QUEUE JOIN
+// --------------------------------------------------
+
+app.post(
+    "/api/queue/join",
+    authenticate,
+    async (req, res) => {
+        const queueType = String(req.body.queueType || "").toLowerCase();
+        const gamemode = String(req.body.gamemode || "").trim();
+
+        const currentTier = req.body.currentTier
+            ? String(req.body.currentTier).toUpperCase().trim()
+            : null;
+
+        const targetTier = req.body.targetTier
+            ? String(req.body.targetTier).toUpperCase().trim()
+            : null;
+
+        if (!validQueueType(queueType)) {
+            return res.status(400).json({
+                success: false,
+                error: "Queue type must be normal or ht"
+            });
+        }
+
+        if (!validGamemode(gamemode)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid gamemode",
+                gamemodes: GAMEMODES
+            });
+        }
+
+        if (queueType === "ht") {
+            if (
+                !currentTier ||
+                !targetTier ||
+                !validHTPath(currentTier, targetTier)
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid HT promotion path",
+                    allowedPaths: HT_PATHS
+                });
+            }
+        }
+
+        if (
+            (currentTier && !TIERS.includes(currentTier)) ||
+            (targetTier && !TIERS.includes(targetTier))
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid tier"
+            });
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query("BEGIN");
+
+            const player = await resolveQueuePlayer(req.body);
+
+            if (!player) {
+                await client.query("ROLLBACK");
+
+                return res.status(404).json({
+                    success: false,
+                    error: "Verified or linked Minecraft account not found"
+                });
+            }
+
+            // Serialize joins for this queue and this player.
+            await client.query(
+                "SELECT pg_advisory_xact_lock(hashtext($1))",
+                [`queue:${queueType}:${gamemode}`]
+            );
+
+            await client.query(
+                "SELECT pg_advisory_xact_lock(hashtext($1))",
+                [`player:${player.uuid}`]
+            );
+
+            if (queueType === "ht") {
+                const modes = player.gamemodes || {};
+                const existingTier = modes[gamemode]?.tier || null;
+
+                if (existingTier !== currentTier) {
+                    await client.query("ROLLBACK");
+
+                    return res.status(400).json({
+                        success: false,
+                        error: "Your current website tier does not match the HT test path",
+                        currentTier: existingTier
+                    });
+                }
+            }
+
+            const active = await client.query(
+                `SELECT id, queue_type, gamemode, status
+                 FROM queue_entries
+                 WHERE uuid = $1
+                   AND status IN ('waiting', 'testing')
+                 LIMIT 1`,
+                [player.uuid]
+            );
+
+            if (active.rows.length) {
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    success: false,
+                    error: "You are already in an active queue",
+                    queue: active.rows[0]
+                });
+            }
+
+            const countResult = await client.query(
+                `SELECT COUNT(*)::int AS count
+                 FROM queue_entries
+                 WHERE queue_type = $1
+                   AND gamemode = $2
+                   AND status = 'waiting'`,
+                [queueType, gamemode]
+            );
+
+            const count = countResult.rows[0].count;
+
+            if (count >= MAX_QUEUE_SIZE) {
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    success: false,
+                    error: "This queue is full",
+                    maximum: MAX_QUEUE_SIZE
+                });
+            }
+
+            const insertResult = await client.query(
+                `INSERT INTO queue_entries
+                    (uuid, queue_type, gamemode, current_tier,
+                     target_tier, joined_at, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, 'waiting')
+                 RETURNING id`,
+                [
+                    player.uuid,
+                    queueType,
+                    gamemode,
+                    currentTier,
+                    targetTier,
+                    Date.now()
+                ]
+            );
+
+            await client.query("COMMIT");
+
+            res.json({
+                success: true,
+                message: `Joined ${gamemode} ${queueType} queue`,
+                queueEntryId: insertResult.rows[0].id,
+                username: player.username,
+                queueType,
+                gamemode,
+                position: count + 1,
+                maximum: MAX_QUEUE_SIZE
+            });
+        } catch (error) {
+            await client.query("ROLLBACK");
+
+            if (error.code === "23505") {
+                return res.status(409).json({
+                    success: false,
+                    error: "You already have an active queue entry"
+                });
+            }
+
+            console.error("Queue join error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not join queue"
+            });
+        } finally {
+            client.release();
+        }
+    }
+);
+
+// --------------------------------------------------
+// QUEUE VIEW
+// --------------------------------------------------
+
+app.get(
+    "/api/queue/:queueType/:gamemode",
+    async (req, res) => {
+        const queueType = String(req.params.queueType).toLowerCase();
+        const gamemode = String(req.params.gamemode);
+
+        if (!validQueueType(queueType) || !validGamemode(gamemode)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid queue type or gamemode"
+            });
+        }
+
+        try {
+            const result = await pool.query(
+                `SELECT q.id, p.username, q.current_tier,
+                        q.target_tier, q.joined_at, q.status
+                 FROM queue_entries q
+                 INNER JOIN players p ON p.uuid = q.uuid
+                 WHERE q.queue_type = $1
+                   AND q.gamemode = $2
+                   AND q.status IN ('waiting', 'testing')
+                 ORDER BY
+                    CASE WHEN q.status = 'testing' THEN 0 ELSE 1 END,
+                    q.joined_at ASC`,
+                [queueType, gamemode]
+            );
+
+            const players = result.rows.map((entry, index) => ({
+                position: entry.status === "waiting"
+                    ? result.rows.filter(
+                        item =>
+                            item.status === "waiting" &&
+                            item.joined_at <= entry.joined_at
+                    ).length
+                    : null,
+                username: entry.username,
+                currentTier: entry.current_tier,
+                targetTier: entry.target_tier,
+                joinedAt: Number(entry.joined_at),
+                status: entry.status
+            }));
+
+            const waiting = result.rows.filter(
+                entry => entry.status === "waiting"
+            ).length;
+
+            res.json({
+                success: true,
+                queueType,
+                gamemode,
+                name: `${gamemode.toUpperCase()} QUEUE`,
+                waiting,
+                maximum: MAX_QUEUE_SIZE,
+                full: waiting >= MAX_QUEUE_SIZE,
+                players
+            });
+        } catch (error) {
+            console.error("Queue view error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not load queue"
+            });
+        }
+    }
+);
+
+// --------------------------------------------------
+// QUEUE LEAVE
+// --------------------------------------------------
+
+app.post(
+    "/api/queue/leave",
+    authenticate,
+    async (req, res) => {
+        try {
+            const player = await resolveQueuePlayer(req.body);
+
+            if (!player) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Player account not found"
+                });
+            }
+
+            const result = await pool.query(
+                `UPDATE queue_entries
+                 SET status = 'completed'
+                 WHERE uuid = $1 AND status = 'waiting'
+                 RETURNING id, queue_type, gamemode`,
+                [player.uuid]
+            );
+
+            if (!result.rows.length) {
+                return res.status(404).json({
+                    success: false,
+                    error: "You are not waiting in a queue"
+                });
+            }
+
+            res.json({
+                success: true,
+                message: "You left the queue",
+                queue: result.rows[0]
+            });
+        } catch (error) {
+            console.error("Queue leave error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not leave queue"
+            });
+        }
+    }
+);
+
+// --------------------------------------------------
+// TESTER: SELECT NEXT PLAYER
+// --------------------------------------------------
+
+app.post(
+    "/api/queue/next",
+    authenticate,
+    async (req, res) => {
+        const queueType = String(req.body.queueType || "").toLowerCase();
+        const gamemode = String(req.body.gamemode || "").trim();
+        const testerDiscordId = String(
+            req.body.testerDiscordId || ""
+        ).trim();
+
+        const testerRole = String(
+            req.body.testerRole || ""
+        ).toLowerCase();
+
+        if (
+            !validQueueType(queueType) ||
+            !validGamemode(gamemode) ||
+            !/^\d{17,20}$/.test(testerDiscordId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid queue or tester information"
+            });
+        }
+
+        if (!TESTER_ROLES[queueType].includes(testerRole)) {
+            return res.status(403).json({
+                success: false,
+                error: "You are not allowed to handle this queue"
+            });
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query("BEGIN");
+
+            await client.query(
+                "SELECT pg_advisory_xact_lock(hashtext($1))",
+                [`queue:${queueType}:${gamemode}`]
+            );
+
+            const nextResult = await client.query(
+                `SELECT q.id, q.uuid, q.current_tier,
+                        q.target_tier, q.joined_at, p.username
+                 FROM queue_entries q
+                 INNER JOIN players p ON p.uuid = q.uuid
+                 WHERE q.queue_type = $1
+                   AND q.gamemode = $2
+                   AND q.status = 'waiting'
+                 ORDER BY q.joined_at ASC
+                 LIMIT 1
+                 FOR UPDATE OF q SKIP LOCKED`,
+                [queueType, gamemode]
+            );
+
+            if (!nextResult.rows.length) {
+                await client.query("ROLLBACK");
+
+                return res.status(404).json({
+                    success: false,
+                    error: "There are no players waiting in this queue"
+                });
+            }
+
+            const player = nextResult.rows[0];
+
+            await client.query(
+                `UPDATE queue_entries
+                 SET status = 'testing',
+                     tester_discord_id = $1
+                 WHERE id = $2`,
+                [testerDiscordId, player.id]
+            );
+
+            await client.query("COMMIT");
+
+            res.json({
+                success: true,
+                message: "Player selected. Create their private ticket.",
+                entry: {
+                    id: player.id,
+                    username: player.username,
+                    uuid: player.uuid,
+                    queueType,
+                    gamemode,
+                    currentTier: player.current_tier,
+                    targetTier: player.target_tier,
+                    joinedAt: Number(player.joined_at),
+                    testerDiscordId
+                }
+            });
+        } catch (error) {
+            await client.query("ROLLBACK");
+
+            console.error("Queue next error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not select next player"
+            });
+        } finally {
+            client.release();
+        }
+    }
+);
+
+// --------------------------------------------------
+// TESTER: ATTACH DISCORD TICKET
+// --------------------------------------------------
+
+app.post(
+    "/api/queue/ticket",
+    authenticate,
+    async (req, res) => {
+        const entryId = Number(req.body.entryId);
+        const testerDiscordId = String(
+            req.body.testerDiscordId || ""
+        );
+        const ticketChannelId = String(
+            req.body.ticketChannelId || ""
+        );
+
+        if (
+            !Number.isSafeInteger(entryId) ||
+            entryId <= 0 ||
+            !/^\d{17,20}$/.test(testerDiscordId) ||
+            !/^\d{17,20}$/.test(ticketChannelId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid ticket information"
+            });
+        }
+
+        try {
+            const result = await pool.query(
+                `UPDATE queue_entries
+                 SET ticket_channel_id = $1
+                 WHERE id = $2
+                   AND status = 'testing'
+                   AND tester_discord_id = $3
+                 RETURNING id`,
+                [ticketChannelId, entryId, testerDiscordId]
+            );
+
+            if (!result.rows.length) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Testing entry not found or assigned to another tester"
+                });
+            }
+
+            res.json({
+                success: true,
+                message: "Ticket linked to testing entry"
+            });
+        } catch (error) {
+            console.error("Ticket link error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not link ticket"
+            });
+        }
+    }
+);
+
+// --------------------------------------------------
+// TESTER: FINISH TEST
+// --------------------------------------------------
+
+app.post(
+    "/api/queue/finish",
+    authenticate,
+    async (req, res) => {
+        const entryId = Number(req.body.entryId);
+        const testerDiscordId = String(
+            req.body.testerDiscordId || ""
+        );
+
+        if (
+            !Number.isSafeInteger(entryId) ||
+            entryId <= 0 ||
+            !/^\d{17,20}$/.test(testerDiscordId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid testing entry"
+            });
+        }
+
+        try {
+            const result = await pool.query(
+                `UPDATE queue_entries
+                 SET status = 'completed'
+                 WHERE id = $1
+                   AND status = 'testing'
+                   AND tester_discord_id = $2
+                 RETURNING id, queue_type, gamemode`,
+                [entryId, testerDiscordId]
+            );
+
+            if (!result.rows.length) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Testing entry not found"
+                });
+            }
+
+            res.json({
+                success: true,
+                message: "Testing entry completed",
+                entry: result.rows[0]
+            });
+        } catch (error) {
+            console.error("Queue finish error:", error);
+
+            res.status(500).json({
+                success: false,
+                error: "Could not finish testing entry"
+            });
+        }
+    }
+);
+
+// --------------------------------------------------
+// TIER ASSIGNMENT
+// --------------------------------------------------
+
 app.post(
     "/api/tiers/assign",
     authenticate,
@@ -495,14 +1411,14 @@ app.post(
         const gamemode = String(req.body.gamemode || "").trim();
         const tier = String(req.body.tier || "").toUpperCase().trim();
 
-        if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+        if (!validUsername(username)) {
             return res.status(400).json({
                 success: false,
                 error: "Invalid username"
             });
         }
 
-        if (!GAMEMODES.includes(gamemode)) {
+        if (!validGamemode(gamemode)) {
             return res.status(400).json({
                 success: false,
                 error: "Invalid gamemode"
@@ -543,6 +1459,10 @@ app.post(
             modeData.tier = tier;
             modeData.testedAt = Date.now();
 
+            if (!Array.isArray(modeData.history)) {
+                modeData.history = [];
+            }
+
             modeData.history.push({
                 tier,
                 testedAt: modeData.testedAt
@@ -551,6 +1471,18 @@ app.post(
             await pool.query(
                 "UPDATE players SET gamemodes = $1 WHERE uuid = $2",
                 [JSON.stringify(gamemodes), player.uuid]
+            );
+
+            // Complete an active test when the assigned tier matches
+            // its requested target. Normal tests with no target also finish.
+            await pool.query(
+                `UPDATE queue_entries
+                 SET status = 'completed'
+                 WHERE uuid = $1
+                   AND gamemode = $2
+                   AND status = 'testing'
+                   AND (target_tier IS NULL OR target_tier = $3)`,
+                [player.uuid, gamemode, tier]
             );
 
             res.json({
@@ -575,7 +1507,10 @@ app.post(
     }
 );
 
-// Remove a player's current tier
+// --------------------------------------------------
+// TIER REMOVAL
+// --------------------------------------------------
+
 app.delete(
     "/api/tiers/remove",
     authenticate,
@@ -583,14 +1518,14 @@ app.delete(
         const username = String(req.body.username || "").trim();
         const gamemode = String(req.body.gamemode || "").trim();
 
-        if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+        if (!validUsername(username)) {
             return res.status(400).json({
                 success: false,
                 error: "Invalid username"
             });
         }
 
-        if (!GAMEMODES.includes(gamemode)) {
+        if (!validGamemode(gamemode)) {
             return res.status(400).json({
                 success: false,
                 error: "Invalid gamemode"
@@ -649,7 +1584,10 @@ app.delete(
     }
 );
 
-// Public leaderboard
+// --------------------------------------------------
+// LEADERBOARD
+// --------------------------------------------------
+
 app.get("/api/tiers/leaderboard", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
 
@@ -657,7 +1595,7 @@ app.get("/api/tiers/leaderboard", async (req, res) => {
         ? String(req.query.gamemode)
         : null;
 
-    if (gamemode && !GAMEMODES.includes(gamemode)) {
+    if (gamemode && !validGamemode(gamemode)) {
         return res.status(400).json({
             success: false,
             error: "Invalid gamemode",
@@ -685,16 +1623,25 @@ app.get("/api/tiers/leaderboard", async (req, res) => {
     }
 });
 
-// Public gamemode and tier information
+// --------------------------------------------------
+// GAMEMODE AND TIER INFORMATION
+// --------------------------------------------------
+
 app.get("/api/tiers/info", (req, res) => {
     res.json({
         success: true,
         gamemodes: GAMEMODES,
-        tiers: TIERS
+        tiers: TIERS,
+        htPaths: HT_PATHS,
+        queueTypes: ["normal", "ht"],
+        maximumQueueSize: MAX_QUEUE_SIZE
     });
 });
 
-// Start server after database connection
+// --------------------------------------------------
+// START SERVER
+// --------------------------------------------------
+
 async function startServer() {
     try {
         await initializeDatabase();
