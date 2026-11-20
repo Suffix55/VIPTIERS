@@ -1,3 +1,4 @@
+
 const express = require("express");
 const crypto = require("crypto");
 const { Pool } = require("pg");
@@ -33,6 +34,8 @@ const TIERS = [
     "HT1", "LT1", "HT2", "LT2", "HT3",
     "LT3", "HT4", "LT4", "HT5", "LT5"
 ];
+
+const REGIONS = ["EU", "NA", "AS", "AU"];
 
 const HT_PATHS = {
     LT3: "HT3",
@@ -108,12 +111,19 @@ async function initializeDatabase() {
             gamemode TEXT NOT NULL,
             current_tier TEXT,
             target_tier TEXT,
+            region TEXT,
             joined_at BIGINT NOT NULL,
             status TEXT NOT NULL DEFAULT 'waiting'
                 CHECK (status IN ('waiting', 'testing', 'completed')),
             tester_discord_id TEXT,
             ticket_channel_id TEXT
         )
+    `);
+
+    // Safe migration for existing databases.
+    await pool.query(`
+        ALTER TABLE queue_entries
+        ADD COLUMN IF NOT EXISTS region TEXT
     `);
 
     await pool.query(`
@@ -197,6 +207,14 @@ function normalizeUUID(uuid) {
 
 function validDiscordId(id) {
     return /^\d{17,20}$/.test(String(id || ""));
+}
+
+function validRegion(region) {
+    return REGIONS.includes(String(region || "").toUpperCase());
+}
+
+function normalizeRegion(region) {
+    return String(region || "").trim().toUpperCase();
 }
 
 function createGamemodes() {
@@ -335,9 +353,6 @@ app.get("/", (req, res) => {
 // DISCORD + MINECRAFT VERIFICATION
 // ==================================================
 
-// Discord bot requests a 6-digit code.
-// The code is stored in PostgreSQL and linked to the Discord ID.
-
 app.post(
     "/api/verification/discord-code",
     authenticate,
@@ -398,10 +413,7 @@ app.post(
                         message: "Verification code generated successfully"
                     });
                 } catch (error) {
-                    if (error.code === "23505") {
-                        continue;
-                    }
-
+                    if (error.code === "23505") continue;
                     throw error;
                 }
             }
@@ -420,9 +432,6 @@ app.post(
         }
     }
 );
-
-// Minecraft plugin submits the code.
-// Backend finds the Discord ID and links both accounts.
 
 app.post(
     "/api/verification/complete",
@@ -580,7 +589,6 @@ app.post(
                 discordId,
                 message: "Minecraft account verified and Discord account linked successfully!"
             });
-
         } catch (error) {
             await client.query("ROLLBACK");
 
@@ -1014,6 +1022,8 @@ app.post(
             ? String(req.body.targetTier).toUpperCase().trim()
             : null;
 
+        const region = normalizeRegion(req.body.region);
+
         if (!validQueueType(queueType)) {
             return res.status(400).json({
                 success: false,
@@ -1026,6 +1036,14 @@ app.post(
                 success: false,
                 error: "Invalid gamemode",
                 gamemodes: GAMEMODES
+            });
+        }
+
+        if (!validRegion(region)) {
+            return res.status(400).json({
+                success: false,
+                error: "Select a valid region",
+                regions: REGIONS
             });
         }
 
@@ -1151,8 +1169,8 @@ app.post(
             const insertResult = await client.query(
                 `INSERT INTO queue_entries
                     (uuid, queue_type, gamemode, current_tier,
-                     target_tier, joined_at, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, 'waiting')
+                     target_tier, region, joined_at, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'waiting')
                  RETURNING id`,
                 [
                     player.uuid,
@@ -1160,6 +1178,7 @@ app.post(
                     gamemode,
                     currentTier,
                     targetTier,
+                    region,
                     Date.now()
                 ]
             );
@@ -1173,6 +1192,7 @@ app.post(
                 username: player.username,
                 queueType,
                 gamemode,
+                region,
                 position: count + 1,
                 maximum: MAX_QUEUE_SIZE
             });
@@ -1225,6 +1245,7 @@ app.get(
                     d.discord_id,
                     q.current_tier,
                     q.target_tier,
+                    q.region,
                     q.joined_at
                  FROM queue_entries q
                  INNER JOIN players p ON p.uuid = q.uuid
@@ -1254,6 +1275,7 @@ app.get(
                 discordId: entry.discord_id,
                 currentTier: entry.current_tier,
                 targetTier: entry.target_tier,
+                region: entry.region,
                 joinedAt: Number(entry.joined_at),
                 status: "waiting"
             }));
@@ -1272,6 +1294,7 @@ app.get(
                 waiting,
                 maximum: MAX_QUEUE_SIZE,
                 full: waiting >= MAX_QUEUE_SIZE,
+                regions: REGIONS,
                 players,
                 activeTesters
             });
@@ -1309,7 +1332,7 @@ app.post(
                  SET status = 'completed'
                  WHERE uuid = $1
                    AND status = 'waiting'
-                 RETURNING id, queue_type, gamemode`,
+                 RETURNING id, queue_type, gamemode, region`,
                 [player.uuid]
             );
 
@@ -1388,6 +1411,7 @@ app.post(
                     q.uuid,
                     q.current_tier,
                     q.target_tier,
+                    q.region,
                     q.joined_at,
                     p.username,
                     d.discord_id
@@ -1436,6 +1460,7 @@ app.post(
                     gamemode,
                     currentTier: player.current_tier,
                     targetTier: player.target_tier,
+                    region: player.region,
                     joinedAt: Number(player.joined_at),
                     testerDiscordId
                 }
@@ -1543,7 +1568,7 @@ app.post(
                  WHERE id = $1
                    AND status = 'testing'
                    AND tester_discord_id = $2
-                 RETURNING id, queue_type, gamemode`,
+                 RETURNING id, queue_type, gamemode, region`,
                 [entryId, testerDiscordId]
             );
 
@@ -1599,7 +1624,7 @@ app.post(
                  WHERE id = $1
                    AND status = 'testing'
                    AND tester_discord_id = $2
-                 RETURNING id, queue_type, gamemode`,
+                 RETURNING id, queue_type, gamemode, region`,
                 [entryId, testerDiscordId]
             );
 
@@ -1897,7 +1922,7 @@ app.get("/api/tiers/leaderboard", async (req, res) => {
 });
 
 // ==================================================
-// GAMEMODE AND TIER INFORMATION
+// GAMEMODE, TIER AND REGION INFORMATION
 // ==================================================
 
 app.get("/api/tiers/info", (req, res) => {
@@ -1905,6 +1930,7 @@ app.get("/api/tiers/info", (req, res) => {
         success: true,
         gamemodes: GAMEMODES,
         tiers: TIERS,
+        regions: REGIONS,
         htPaths: HT_PATHS,
         queueTypes: ["normal", "ht"],
         maximumQueueSize: MAX_QUEUE_SIZE
