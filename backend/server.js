@@ -15,13 +15,8 @@ const CODE_LIFETIME = 10 * 60 * 1000;
 const LINK_CODE_LIFETIME = 5 * 60 * 1000;
 const MAX_QUEUE_SIZE = 10;
 
-if (!DATABASE_URL) {
-    console.error("DATABASE_URL is missing!");
-    process.exit(1);
-}
-
-if (!API_SECRET) {
-    console.error("API_SECRET is missing!");
+if (!DATABASE_URL || !API_SECRET) {
+    console.error("DATABASE_URL or API_SECRET is missing!");
     process.exit(1);
 }
 
@@ -34,29 +29,13 @@ const pendingCodes = new Map();
 const usernameCooldowns = new Map();
 
 const GAMEMODES = [
-    "Crystal",
-    "UHC",
-    "Pot",
-    "NethOP",
-    "DiaSMP",
-    "Sword",
-    "Axe",
-    "Mace",
-    "Spear Mace",
-    "Cart"
+    "Crystal", "UHC", "Pot", "NethOP", "DiaSMP",
+    "Sword", "Axe", "Mace", "Spear Mace", "Cart"
 ];
 
 const TIERS = [
-    "HT1",
-    "LT1",
-    "HT2",
-    "LT2",
-    "HT3",
-    "LT3",
-    "HT4",
-    "LT4",
-    "HT5",
-    "LT5"
+    "HT1", "LT1", "HT2", "LT2", "HT3",
+    "LT3", "HT4", "LT4", "HT5", "LT5"
 ];
 
 const HT_PATHS = {
@@ -77,9 +56,9 @@ const TESTER_ROLES = {
     ]
 };
 
-// --------------------------------------------------
+// ==================================================
 // DATABASE
-// --------------------------------------------------
+// ==================================================
 
 async function initializeDatabase() {
     await pool.query(`
@@ -116,8 +95,7 @@ async function initializeDatabase() {
         CREATE TABLE IF NOT EXISTS queue_entries (
             id BIGSERIAL PRIMARY KEY,
             uuid TEXT NOT NULL REFERENCES players(uuid) ON DELETE CASCADE,
-            queue_type TEXT NOT NULL
-                CHECK (queue_type IN ('normal', 'ht')),
+            queue_type TEXT NOT NULL CHECK (queue_type IN ('normal', 'ht')),
             gamemode TEXT NOT NULL,
             current_tier TEXT,
             target_tier TEXT,
@@ -144,9 +122,9 @@ async function initializeDatabase() {
     console.log("VIPTIERS PostgreSQL database connected!");
 }
 
-// --------------------------------------------------
+// ==================================================
 // CORS
-// --------------------------------------------------
+// ==================================================
 
 app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -173,9 +151,9 @@ app.use((req, res, next) => {
     next();
 });
 
-// --------------------------------------------------
+// ==================================================
 // AUTHENTICATION
-// --------------------------------------------------
+// ==================================================
 
 function authenticate(req, res, next) {
     const supplied = req.headers.authorization || "";
@@ -190,9 +168,9 @@ function authenticate(req, res, next) {
     next();
 }
 
-// --------------------------------------------------
+// ==================================================
 // HELPERS
-// --------------------------------------------------
+// ==================================================
 
 function validUsername(username) {
     return /^[a-zA-Z0-9_]{3,16}$/.test(username);
@@ -342,9 +320,9 @@ async function getLeaderboard(gamemode = null) {
     }));
 }
 
-// --------------------------------------------------
+// ==================================================
 // HEALTH CHECK
-// --------------------------------------------------
+// ==================================================
 
 app.get("/", (req, res) => {
     res.json({
@@ -354,9 +332,9 @@ app.get("/", (req, res) => {
     });
 });
 
-// --------------------------------------------------
+// ==================================================
 // VERIFICATION
-// --------------------------------------------------
+// ==================================================
 
 function generateVerificationCode() {
     for (let i = 0; i < 100; i++) {
@@ -635,9 +613,9 @@ app.delete(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // DISCORD ACCOUNT LINKING
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/link/start",
@@ -864,9 +842,9 @@ app.get(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // QUEUE JOIN
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/queue/join",
@@ -938,7 +916,6 @@ app.post(
                 });
             }
 
-            // Every queue entry must belong to a linked Discord account.
             const linkResult = await client.query(
                 "SELECT discord_id FROM discord_links WHERE uuid = $1",
                 [player.uuid]
@@ -953,7 +930,6 @@ app.post(
                 });
             }
 
-            // Serialize joins for this queue and this player.
             await client.query(
                 "SELECT pg_advisory_xact_lock(hashtext($1))",
                 [`queue:${queueType}:${gamemode}`]
@@ -1069,15 +1045,17 @@ app.post(
     }
 );
 
-// --------------------------------------------------
-// QUEUE VIEW
-// --------------------------------------------------
+// ==================================================
+// QUEUE VIEW — WAITING PLAYERS + ACTIVE TESTERS
+// ==================================================
 
 app.get(
     "/api/queue/:queueType/:gamemode",
     async (req, res) => {
         const queueType = String(req.params.queueType).toLowerCase();
         const gamemode = String(req.params.gamemode);
+
+        res.setHeader("Cache-Control", "no-store");
 
         if (!validQueueType(queueType) || !validGamemode(gamemode)) {
             return res.status(400).json({
@@ -1087,45 +1065,53 @@ app.get(
         }
 
         try {
-            const result = await pool.query(
-                `SELECT q.id, p.username, q.current_tier,
-                        q.target_tier, q.joined_at, q.status
+            // Waiting players, ordered by join time.
+            const waitingResult = await pool.query(
+                `SELECT
+                    q.id,
+                    p.username,
+                    d.discord_id,
+                    q.current_tier,
+                    q.target_tier,
+                    q.joined_at
                  FROM queue_entries q
                  INNER JOIN players p ON p.uuid = q.uuid
+                 INNER JOIN discord_links d ON d.uuid = q.uuid
                  WHERE q.queue_type = $1
                    AND q.gamemode = $2
-                   AND q.status IN ('waiting', 'testing')
-                 ORDER BY
-                    CASE WHEN q.status = 'testing' THEN 0 ELSE 1 END,
-                    q.joined_at ASC,
-                    q.id ASC`,
+                   AND q.status = 'waiting'
+                 ORDER BY q.joined_at ASC, q.id ASC`,
                 [queueType, gamemode]
             );
 
-            let waitingPosition = 0;
+            // Testers who currently have a testing entry.
+            const testersResult = await pool.query(
+                `SELECT DISTINCT tester_discord_id
+                 FROM queue_entries
+                 WHERE queue_type = $1
+                   AND gamemode = $2
+                   AND status = 'testing'
+                   AND tester_discord_id IS NOT NULL
+                 ORDER BY tester_discord_id`,
+                [queueType, gamemode]
+            );
 
-            const players = result.rows.map(entry => {
-                let position = null;
+            const players = waitingResult.rows.map((entry, index) => ({
+                id: entry.id,
+                position: index + 1,
+                username: entry.username,
+                discordId: entry.discord_id,
+                currentTier: entry.current_tier,
+                targetTier: entry.target_tier,
+                joinedAt: Number(entry.joined_at),
+                status: "waiting"
+            }));
 
-                if (entry.status === "waiting") {
-                    waitingPosition++;
-                    position = waitingPosition;
-                }
+            const activeTesters = testersResult.rows.map(entry => ({
+                discordId: entry.tester_discord_id
+            }));
 
-                return {
-                    id: entry.id,
-                    position,
-                    username: entry.username,
-                    currentTier: entry.current_tier,
-                    targetTier: entry.target_tier,
-                    joinedAt: Number(entry.joined_at),
-                    status: entry.status
-                };
-            });
-
-            const waiting = result.rows.filter(
-                entry => entry.status === "waiting"
-            ).length;
+            const waiting = players.length;
 
             res.json({
                 success: true,
@@ -1135,7 +1121,8 @@ app.get(
                 waiting,
                 maximum: MAX_QUEUE_SIZE,
                 full: waiting >= MAX_QUEUE_SIZE,
-                players
+                players,
+                activeTesters
             });
         } catch (error) {
             console.error("Queue view error:", error);
@@ -1148,9 +1135,9 @@ app.get(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // QUEUE LEAVE
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/queue/leave",
@@ -1198,9 +1185,9 @@ app.post(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // TESTER: SELECT NEXT PLAYER
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/queue/next",
@@ -1244,11 +1231,15 @@ app.post(
                 [`queue:${queueType}:${gamemode}`]
             );
 
-            // Fetch the player's linked Discord ID for the ticket.
             const nextResult = await client.query(
-                `SELECT q.id, q.uuid, q.current_tier,
-                        q.target_tier, q.joined_at, p.username,
-                        d.discord_id
+                `SELECT
+                    q.id,
+                    q.uuid,
+                    q.current_tier,
+                    q.target_tier,
+                    q.joined_at,
+                    p.username,
+                    d.discord_id
                  FROM queue_entries q
                  INNER JOIN players p ON p.uuid = q.uuid
                  INNER JOIN discord_links d ON d.uuid = q.uuid
@@ -1313,21 +1304,17 @@ app.post(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // TESTER: ATTACH DISCORD TICKET
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/queue/ticket",
     authenticate,
     async (req, res) => {
         const entryId = Number(req.body.entryId);
-        const testerDiscordId = String(
-            req.body.testerDiscordId || ""
-        );
-        const ticketChannelId = String(
-            req.body.ticketChannelId || ""
-        );
+        const testerDiscordId = String(req.body.testerDiscordId || "");
+        const ticketChannelId = String(req.body.ticketChannelId || "");
 
         if (
             !Number.isSafeInteger(entryId) ||
@@ -1374,18 +1361,16 @@ app.post(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // TESTER: RELEASE PLAYER IF TICKET CREATION FAILS
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/queue/release",
     authenticate,
     async (req, res) => {
         const entryId = Number(req.body.entryId);
-        const testerDiscordId = String(
-            req.body.testerDiscordId || ""
-        );
+        const testerDiscordId = String(req.body.testerDiscordId || "");
 
         if (
             !Number.isSafeInteger(entryId) ||
@@ -1434,18 +1419,16 @@ app.post(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // TESTER: FINISH TEST
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/queue/finish",
     authenticate,
     async (req, res) => {
         const entryId = Number(req.body.entryId);
-        const testerDiscordId = String(
-            req.body.testerDiscordId || ""
-        );
+        const testerDiscordId = String(req.body.testerDiscordId || "");
 
         if (
             !Number.isSafeInteger(entryId) ||
@@ -1492,9 +1475,9 @@ app.post(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // TIER ASSIGNMENT
-// --------------------------------------------------
+// ==================================================
 
 app.post(
     "/api/tiers/assign",
@@ -1548,8 +1531,6 @@ app.post(
                 });
             }
 
-            // If this player is currently doing an HT test,
-            // the assigned tier must match the requested HT path.
             const testingResult = await client.query(
                 `SELECT id, queue_type, current_tier, target_tier
                  FROM queue_entries
@@ -1648,9 +1629,9 @@ app.post(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // TIER REMOVAL
-// --------------------------------------------------
+// ==================================================
 
 app.delete(
     "/api/tiers/remove",
@@ -1725,9 +1706,9 @@ app.delete(
     }
 );
 
-// --------------------------------------------------
+// ==================================================
 // LEADERBOARD
-// --------------------------------------------------
+// ==================================================
 
 app.get("/api/tiers/leaderboard", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
@@ -1764,9 +1745,9 @@ app.get("/api/tiers/leaderboard", async (req, res) => {
     }
 });
 
-// --------------------------------------------------
+// ==================================================
 // GAMEMODE AND TIER INFORMATION
-// --------------------------------------------------
+// ==================================================
 
 app.get("/api/tiers/info", (req, res) => {
     res.json({
@@ -1779,9 +1760,9 @@ app.get("/api/tiers/info", (req, res) => {
     });
 });
 
-// --------------------------------------------------
+// ==================================================
 // START SERVER
-// --------------------------------------------------
+// ==================================================
 
 async function startServer() {
     try {
