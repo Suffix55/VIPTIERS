@@ -154,7 +154,11 @@ public final class VIPTIERS extends JavaPlugin
 
         verificationWorld.setGameRule(GameRule.DO_MOB_SPAWNING, false);
         verificationWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+        verificationWorld.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
         verificationWorld.setTime(6000);
+
+        // CREATE FLOATING VERIFICATION PLATFORM
+        createVerificationPlatform();
 
         getServer().getPluginManager().registerEvents(this, this);
 
@@ -174,6 +178,41 @@ public final class VIPTIERS extends JavaPlugin
         }
 
         getLogger().info("VIPTIERS verification and testing enabled!");
+    }
+
+    @Override
+    public void onDisable() {
+        getLogger().info("VIPTIERS disabled!");
+    }
+
+    // FLOATING VERIFICATION PLATFORM
+
+    private void createVerificationPlatform() {
+        int spawnY = 99;
+        int radius = 5;
+
+        for (int x = -radius; x <= radius; x++) {
+            for (int z = -radius; z <= radius; z++) {
+
+                verificationWorld.getBlockAt(x, spawnY, z)
+                        .setType(Material.GLASS, false);
+            }
+        }
+
+        verificationWorld.setSpawnLocation(0, 100, 0);
+
+        getLogger().info("VIPTIERS sky platform created!");
+    }
+
+    private Location getVerificationSpawn() {
+        return new Location(
+                verificationWorld,
+                0.5,
+                100,
+                0.5,
+                0,
+                0
+        );
     }
 
     private HttpRequest.Builder authenticatedRequest(String url) {
@@ -200,9 +239,7 @@ public final class VIPTIERS extends JavaPlugin
         player.setAllowFlight(true);
         player.setFlying(true);
 
-        player.teleport(new Location(
-                verificationWorld, 0.5, 100, 0.5
-        ));
+        player.teleport(getVerificationSpawn());
 
         player.sendMessage("");
         player.sendMessage(ChatColor.LIGHT_PURPLE.toString()
