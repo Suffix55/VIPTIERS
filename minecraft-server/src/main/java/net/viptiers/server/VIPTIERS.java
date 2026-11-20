@@ -141,7 +141,8 @@ public final class VIPTIERS extends JavaPlugin
             }
         };
 
-        verificationWorld = new WorldCreator("viptiers_void")
+        // Use a fresh world name so the old world is not reused.
+        verificationWorld = new WorldCreator("viptiers_void_clean")
                 .environment(World.Environment.NORMAL)
                 .generator(voidGenerator)
                 .createWorld();
@@ -157,7 +158,6 @@ public final class VIPTIERS extends JavaPlugin
         verificationWorld.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
         verificationWorld.setTime(6000);
 
-        // CREATE FLOATING VERIFICATION PLATFORM
         createVerificationPlatform();
 
         getServer().getPluginManager().registerEvents(this, this);
@@ -188,20 +188,37 @@ public final class VIPTIERS extends JavaPlugin
     // FLOATING VERIFICATION PLATFORM
 
     private void createVerificationPlatform() {
-        int spawnY = 99;
+        if (verificationWorld == null) {
+            getLogger().severe("Verification world is missing!");
+            return;
+        }
+
+        int platformY = 99;
         int radius = 5;
+
+        // Load the chunk containing the platform.
+        verificationWorld.getChunkAt(0, 0).load();
 
         for (int x = -radius; x <= radius; x++) {
             for (int z = -radius; z <= radius; z++) {
 
-                verificationWorld.getBlockAt(x, spawnY, z)
+                // Clear the space above the platform.
+                for (int y = 100; y <= 110; y++) {
+                    verificationWorld.getBlockAt(x, y, z)
+                            .setType(Material.AIR, false);
+                }
+
+                // Create the glass platform.
+                verificationWorld.getBlockAt(x, platformY, z)
                         .setType(Material.GLASS, false);
             }
         }
 
         verificationWorld.setSpawnLocation(0, 100, 0);
 
-        getLogger().info("VIPTIERS sky platform created!");
+        getLogger().info(
+                "VIPTIERS glass platform created at Y=99!"
+        );
     }
 
     private Location getVerificationSpawn() {
@@ -214,6 +231,8 @@ public final class VIPTIERS extends JavaPlugin
                 0
         );
     }
+
+    // HTTP REQUESTS
 
     private HttpRequest.Builder authenticatedRequest(String url) {
         return HttpRequest.newBuilder()
@@ -974,6 +993,7 @@ public final class VIPTIERS extends JavaPlugin
             return;
         }
 
+        // Allow plugin teleports.
         if (event instanceof PlayerTeleportEvent) {
             return;
         }
