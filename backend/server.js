@@ -120,7 +120,6 @@ async function initializeDatabase() {
         )
     `);
 
-    // Safe migration for existing databases.
     await pool.query(`
         ALTER TABLE queue_entries
         ADD COLUMN IF NOT EXISTS region TEXT
@@ -136,6 +135,19 @@ async function initializeDatabase() {
         CREATE INDEX IF NOT EXISTS queue_waiting_lookup
         ON queue_entries(queue_type, gamemode, joined_at, id)
         WHERE status = 'waiting'
+    `);
+
+    // Persistent queue open/closed status.
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS queue_controls (
+            queue_type TEXT NOT NULL
+                CHECK (queue_type IN ('normal', 'ht')),
+            gamemode TEXT NOT NULL,
+            is_open BOOLEAN NOT NULL DEFAULT TRUE,
+            updated_at BIGINT NOT NULL,
+            updated_by TEXT,
+            PRIMARY KEY (queue_type, gamemode)
+        )
     `);
 
     console.log("VIPTIERS PostgreSQL database connected!");
@@ -293,6 +305,75 @@ function validGamemode(gamemode) {
 
 function validHTPath(currentTier, targetTier) {
     return HT_PATHS[currentTier] === targetTier;
+}
+
+async function getQueueControl(queueType, gamemode, client = pool) {
+    const result = await client.query(
+        `SELECT is_open, updated_at, updated_by
+         FROM queue_controls
+         WHERE queue_type = $1 AND gamemode = $2`,
+        [queueType, gamemode]
+    );
+
+    if (!result.rows.length) {
+        return {
+            isOpen: true,
+            updatedAt: null,
+            updatedBy: null
+        };
+    }
+
+    return {
+        isOpen: result.rows[0].is_open,
+        updatedAt: Number(result.rows[0].updated_at),
+        updatedBy: result.rows[0].updated_by
+    };
+}
+
+async function setQueueControl(
+    queueType,
+    gamemode,
+    isOpen,
+    updatedBy = null
+) {
+    const client = await pool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        // Use the same lock as queue joining so close/open cannot race with joins.
+        await client.query(
+            "SELECT pg_advisory_xact_lock(hashtext($1))",
+            [`queue:${queueType}:${gamemode}`]
+        );
+
+        await client.query(
+            `INSERT INTO queue_controls
+                (queue_type, gamemode, is_open, updated_at, updated_by)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (queue_type, gamemode)
+             DO UPDATE SET
+                is_open = EXCLUDED.is_open,
+                updated_at = EXCLUDED.updated_at,
+                updated_by = EXCLUDED.updated_by`,
+            [
+                queueType,
+                gamemode,
+                isOpen,
+                Date.now(),
+                updatedBy
+            ]
+        );
+
+        await client.query("COMMIT");
+
+        return await getQueueControl(queueType, gamemode);
+    } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+    } finally {
+        client.release();
+    }
 }
 
 async function getLeaderboard(gamemode = null) {
@@ -1004,6 +1085,83 @@ app.get(
 );
 
 // ==================================================
+// QUEUE OPEN / CLOSE CONTROLS
+// ==================================================
+
+async function handleQueueControl(req, res, isOpen) {
+    const queueType = String(req.body.queueType || "").toLowerCase();
+    const gamemode = String(req.body.gamemode || "").trim();
+    const updatedBy = req.body.testerDiscordId
+        ? String(req.body.testerDiscordId).trim()
+        : null;
+
+    if (!validQueueType(queueType)) {
+        return res.status(400).json({
+            success: false,
+            error: "Queue type must be normal or ht"
+        });
+    }
+
+    if (!validGamemode(gamemode)) {
+        return res.status(400).json({
+            success: false,
+            error: "Invalid gamemode",
+            gamemodes: GAMEMODES
+        });
+    }
+
+    if (updatedBy && !validDiscordId(updatedBy)) {
+        return res.status(400).json({
+            success: false,
+            error: "Invalid tester Discord ID"
+        });
+    }
+
+    try {
+        const control = await setQueueControl(
+            queueType,
+            gamemode,
+            isOpen,
+            updatedBy
+        );
+
+        return res.json({
+            success: true,
+            queueType,
+            gamemode,
+            isOpen: control.isOpen,
+            status: control.isOpen ? "open" : "closed",
+            updatedAt: control.updatedAt,
+            updatedBy: control.updatedBy,
+            message: `${gamemode} ${queueType.toUpperCase()} queue ${control.isOpen ? "opened" : "closed"}`
+        });
+    } catch (error) {
+        console.error("Queue control error:", error);
+
+        return res.status(500).json({
+            success: false,
+            error: "Could not update queue status"
+        });
+    }
+}
+
+app.post(
+    "/api/queue/close",
+    authenticate,
+    async (req, res) => {
+        return handleQueueControl(req, res, false);
+    }
+);
+
+app.post(
+    "/api/queue/open",
+    authenticate,
+    async (req, res) => {
+        return handleQueueControl(req, res, true);
+    }
+);
+
+// ==================================================
 // QUEUE JOIN
 // ==================================================
 
@@ -1101,10 +1259,29 @@ app.post(
                 });
             }
 
+            // Serialize joins and close/open operations for this queue.
             await client.query(
                 "SELECT pg_advisory_xact_lock(hashtext($1))",
                 [`queue:${queueType}:${gamemode}`]
             );
+
+            const queueControl = await getQueueControl(
+                queueType,
+                gamemode,
+                client
+            );
+
+            if (!queueControl.isOpen) {
+                await client.query("ROLLBACK");
+
+                return res.status(403).json({
+                    success: false,
+                    error: "This queue is currently closed",
+                    queueType,
+                    gamemode,
+                    isOpen: false
+                });
+            }
 
             await client.query(
                 "SELECT pg_advisory_xact_lock(hashtext($1))",
@@ -1268,6 +1445,8 @@ app.get(
                 [queueType, gamemode]
             );
 
+            const control = await getQueueControl(queueType, gamemode);
+
             const players = waitingResult.rows.map((entry, index) => ({
                 id: entry.id,
                 position: index + 1,
@@ -1291,6 +1470,10 @@ app.get(
                 queueType,
                 gamemode,
                 name: `${gamemode.toUpperCase()} ${queueType.toUpperCase()} QUEUE`,
+                isOpen: control.isOpen,
+                status: control.isOpen ? "open" : "closed",
+                updatedAt: control.updatedAt,
+                updatedBy: control.updatedBy,
                 waiting,
                 maximum: MAX_QUEUE_SIZE,
                 full: waiting >= MAX_QUEUE_SIZE,
