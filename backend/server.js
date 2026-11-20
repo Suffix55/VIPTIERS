@@ -1,4 +1,3 @@
-
 const express = require("express");
 const crypto = require("crypto");
 const { Pool } = require("pg");
@@ -24,9 +23,6 @@ const pool = new Pool({
     connectionString: DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
-
-const pendingCodes = new Map();
-const usernameCooldowns = new Map();
 
 const GAMEMODES = [
     "Crystal", "UHC", "Pot", "NethOP", "DiaSMP",
@@ -81,6 +77,19 @@ async function initializeDatabase() {
             discord_id TEXT UNIQUE NOT NULL,
             linked_at BIGINT NOT NULL
         )
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS discord_verification_codes (
+            code TEXT PRIMARY KEY,
+            discord_id TEXT NOT NULL UNIQUE,
+            expires_at BIGINT NOT NULL
+        )
+    `);
+
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS discord_verification_codes_expiry_idx
+        ON discord_verification_codes(expires_at)
     `);
 
     await pool.query(`
@@ -268,16 +277,6 @@ function validHTPath(currentTier, targetTier) {
     return HT_PATHS[currentTier] === targetTier;
 }
 
-function cleanExpiredCodes() {
-    const now = Date.now();
-
-    for (const [code, entry] of pendingCodes) {
-        if (entry.expiresAt <= now) {
-            pendingCodes.delete(code);
-        }
-    }
-}
-
 async function getLeaderboard(gamemode = null) {
     const result = await pool.query(
         "SELECT uuid, username, gamemodes FROM players"
@@ -333,69 +332,105 @@ app.get("/", (req, res) => {
 });
 
 // ==================================================
-// VERIFICATION
+// DISCORD + MINECRAFT VERIFICATION
 // ==================================================
 
-function generateVerificationCode() {
-    for (let i = 0; i < 100; i++) {
-        const code = crypto.randomInt(0, 1000000)
-            .toString()
-            .padStart(6, "0");
+// Discord bot requests a 6-digit code.
+// The code is stored in PostgreSQL and linked to the Discord ID.
 
-        if (!pendingCodes.has(code)) return code;
+app.post(
+    "/api/verification/discord-code",
+    authenticate,
+    async (req, res) => {
+        const discordId = String(req.body.discordId || "").trim();
+
+        if (!validDiscordId(discordId)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid Discord ID"
+            });
+        }
+
+        try {
+            await pool.query(
+                "DELETE FROM discord_verification_codes WHERE expires_at <= $1",
+                [Date.now()]
+            );
+
+            const existingLink = await pool.query(
+                "SELECT uuid FROM discord_links WHERE discord_id = $1",
+                [discordId]
+            );
+
+            if (existingLink.rows.length) {
+                return res.status(409).json({
+                    success: false,
+                    error: "This Discord account is already linked to a Minecraft account"
+                });
+            }
+
+            for (let attempt = 0; attempt < 20; attempt++) {
+                const code = crypto.randomInt(0, 1000000)
+                    .toString()
+                    .padStart(6, "0");
+
+                try {
+                    const result = await pool.query(
+                        `INSERT INTO discord_verification_codes
+                            (code, discord_id, expires_at)
+                         VALUES ($1, $2, $3)
+                         ON CONFLICT (discord_id)
+                         DO UPDATE SET
+                            code = EXCLUDED.code,
+                            expires_at = EXCLUDED.expires_at
+                         RETURNING code`,
+                        [
+                            code,
+                            discordId,
+                            Date.now() + CODE_LIFETIME
+                        ]
+                    );
+
+                    return res.json({
+                        success: true,
+                        code: result.rows[0].code,
+                        expiresIn: CODE_LIFETIME / 1000,
+                        message: "Verification code generated successfully"
+                    });
+                } catch (error) {
+                    if (error.code === "23505") {
+                        continue;
+                    }
+
+                    throw error;
+                }
+            }
+
+            return res.status(500).json({
+                success: false,
+                error: "Could not generate a unique verification code"
+            });
+        } catch (error) {
+            console.error("Discord verification code error:", error);
+
+            return res.status(500).json({
+                success: false,
+                error: "Could not generate verification code"
+            });
+        }
     }
+);
 
-    throw new Error("Could not generate verification code");
-}
-
-app.post("/api/verification/start", (req, res) => {
-    cleanExpiredCodes();
-
-    const username = String(req.body.username || "").trim();
-
-    if (!validUsername(username)) {
-        return res.status(400).json({
-            success: false,
-            error: "Invalid Minecraft username"
-        });
-    }
-
-    const normalized = username.toLowerCase();
-    const lastRequest = usernameCooldowns.get(normalized);
-
-    if (lastRequest && Date.now() - lastRequest < 30000) {
-        return res.status(429).json({
-            success: false,
-            error: "Please wait 30 seconds before requesting another code"
-        });
-    }
-
-    const code = generateVerificationCode();
-
-    pendingCodes.set(code, {
-        username,
-        expiresAt: Date.now() + CODE_LIFETIME
-    });
-
-    usernameCooldowns.set(normalized, Date.now());
-
-    res.json({
-        success: true,
-        username,
-        code,
-        expiresIn: CODE_LIFETIME / 1000
-    });
-});
+// Minecraft plugin submits the code.
+// Backend finds the Discord ID and links both accounts.
 
 app.post(
     "/api/verification/complete",
     authenticate,
     async (req, res) => {
-        cleanExpiredCodes();
-
         const uuid = normalizeUUID(req.body.uuid);
         const username = String(req.body.username || "").trim();
-        const code = String(req.body.code || "");
+        const code = String(req.body.code || "").trim();
 
         if (
             !validUUID(uuid) ||
@@ -408,31 +443,95 @@ app.post(
             });
         }
 
-        const entry = pendingCodes.get(code);
-
-        if (
-            !entry ||
-            entry.username.toLowerCase() !== username.toLowerCase()
-        ) {
-            return res.status(400).json({
-                success: false,
-                error: "Incorrect code or Minecraft username"
-            });
-        }
+        const client = await pool.connect();
 
         try {
-            const existing = await pool.query(
-                "SELECT * FROM players WHERE uuid = $1",
+            await client.query("BEGIN");
+
+            const codeResult = await client.query(
+                `SELECT discord_id
+                 FROM discord_verification_codes
+                 WHERE code = $1
+                   AND expires_at > $2
+                 FOR UPDATE`,
+                [code, Date.now()]
+            );
+
+            if (!codeResult.rows.length) {
+                await client.query("ROLLBACK");
+
+                return res.status(400).json({
+                    success: false,
+                    error: "Incorrect or expired verification code"
+                });
+            }
+
+            const discordId = codeResult.rows[0].discord_id;
+
+            const existingPlayerResult = await client.query(
+                `SELECT *
+                 FROM players
+                 WHERE uuid = $1
+                 FOR UPDATE`,
                 [uuid]
             );
 
-            const existingPlayer = existing.rows[0];
-            const usernameOwner = await findPlayerByUsername(username);
+            const existingPlayer = existingPlayerResult.rows[0] || null;
+
+            const usernameOwnerResult = await client.query(
+                `SELECT uuid
+                 FROM players
+                 WHERE LOWER(username) = LOWER($1)
+                 FOR UPDATE`,
+                [username]
+            );
+
+            const usernameOwner = usernameOwnerResult.rows[0] || null;
 
             if (usernameOwner && usernameOwner.uuid !== uuid) {
+                await client.query("ROLLBACK");
+
                 return res.status(409).json({
                     success: false,
-                    error: "This username is already linked to another account"
+                    error: "This Minecraft username is already registered to another account"
+                });
+            }
+
+            const existingMinecraftLink = await client.query(
+                "SELECT discord_id FROM discord_links WHERE uuid = $1",
+                [uuid]
+            );
+
+            if (existingMinecraftLink.rows.length) {
+                const linkedDiscordId =
+                    existingMinecraftLink.rows[0].discord_id;
+
+                await client.query("ROLLBACK");
+
+                if (linkedDiscordId === discordId) {
+                    return res.status(409).json({
+                        success: false,
+                        error: "This Minecraft account is already linked to your Discord account"
+                    });
+                }
+
+                return res.status(409).json({
+                    success: false,
+                    error: "This Minecraft account is already linked to another Discord account"
+                });
+            }
+
+            const existingDiscordLink = await client.query(
+                "SELECT uuid FROM discord_links WHERE discord_id = $1",
+                [discordId]
+            );
+
+            if (existingDiscordLink.rows.length) {
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    success: false,
+                    error: "This Discord account is already linked to another Minecraft account"
                 });
             }
 
@@ -444,31 +543,69 @@ app.post(
                 ? existingPlayer.gamemodes
                 : createGamemodes();
 
-            await pool.query(
-                `INSERT INTO players (uuid, username, verified_at, gamemodes)
+            await client.query(
+                `INSERT INTO players
+                    (uuid, username, verified_at, gamemodes)
                  VALUES ($1, $2, $3, $4)
                  ON CONFLICT (uuid)
                  DO UPDATE SET username = EXCLUDED.username`,
-                [uuid, username, verifiedAt, JSON.stringify(gamemodes)]
+                [
+                    uuid,
+                    username,
+                    verifiedAt,
+                    JSON.stringify(gamemodes)
+                ]
             );
 
-            pendingCodes.delete(code);
+            await client.query(
+                `INSERT INTO discord_links
+                    (uuid, discord_id, linked_at)
+                 VALUES ($1, $2, $3)`,
+                [uuid, discordId, Date.now()]
+            );
 
-            res.json({
+            await client.query(
+                "DELETE FROM discord_verification_codes WHERE discord_id = $1",
+                [discordId]
+            );
+
+            await client.query("COMMIT");
+
+            return res.json({
                 success: true,
                 verified: true,
-                message: "Your account has been verified!"
+                discordLinked: true,
+                uuid,
+                username,
+                discordId,
+                message: "Minecraft account verified and Discord account linked successfully!"
             });
-        } catch (error) {
-            console.error("Verification error:", error);
 
-            res.status(500).json({
+        } catch (error) {
+            await client.query("ROLLBACK");
+
+            if (error.code === "23505") {
+                return res.status(409).json({
+                    success: false,
+                    error: "This Minecraft or Discord account is already linked"
+                });
+            }
+
+            console.error("Verification completion error:", error);
+
+            return res.status(500).json({
                 success: false,
                 error: "Could not complete verification"
             });
+        } finally {
+            client.release();
         }
     }
 );
+
+// ==================================================
+// VERIFICATION STATUS
+// ==================================================
 
 app.get(
     "/api/verification/status/:uuid",
@@ -515,6 +652,10 @@ app.get(
     }
 );
 
+// ==================================================
+// VERIFIED PLAYERS
+// ==================================================
+
 app.get(
     "/api/verification/players",
     authenticate,
@@ -547,6 +688,10 @@ app.get(
     }
 );
 
+// ==================================================
+// PUBLIC PLAYER PROFILE
+// ==================================================
+
 app.get("/api/verification/player/:username", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
 
@@ -578,6 +723,10 @@ app.get("/api/verification/player/:username", async (req, res) => {
         });
     }
 });
+
+// ==================================================
+// UNVERIFY PLAYER
+// ==================================================
 
 app.delete(
     "/api/verification/player/:username",
@@ -614,7 +763,7 @@ app.delete(
 );
 
 // ==================================================
-// DISCORD ACCOUNT LINKING
+// LEGACY DISCORD ACCOUNT LINKING
 // ==================================================
 
 app.post(
@@ -792,6 +941,10 @@ app.post(
         }
     }
 );
+
+// ==================================================
+// DISCORD LINK STATUS
+// ==================================================
 
 app.get(
     "/api/link/status",
@@ -1046,7 +1199,7 @@ app.post(
 );
 
 // ==================================================
-// QUEUE VIEW — WAITING PLAYERS + ACTIVE TESTERS
+// QUEUE VIEW
 // ==================================================
 
 app.get(
@@ -1065,7 +1218,6 @@ app.get(
         }
 
         try {
-            // Waiting players, ordered by join time.
             const waitingResult = await pool.query(
                 `SELECT
                     q.id,
@@ -1084,7 +1236,6 @@ app.get(
                 [queueType, gamemode]
             );
 
-            // Testers who currently have a testing entry.
             const testersResult = await pool.query(
                 `SELECT DISTINCT tester_discord_id
                  FROM queue_entries
@@ -1362,7 +1513,7 @@ app.post(
 );
 
 // ==================================================
-// TESTER: RELEASE PLAYER IF TICKET CREATION FAILS
+// TESTER: RELEASE PLAYER
 // ==================================================
 
 app.post(
