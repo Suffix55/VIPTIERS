@@ -1,9 +1,8 @@
+
 name: VIPTIERS
 version: 1.3.0
 main: net.viptiers.server.VIPTIERS
 api-version: '1.21'
-author: VIPTIERS
-description: VIPTIERS Minecraft PvP Verification Network
 
 commands:
   verify:
@@ -11,30 +10,14 @@ commands:
     usage: /verify <code>
 
   verified:
-    description: List all verified players
-    usage: /verified
-    permission: viptiers.admin
-
-  verifyinfo:
-    description: Check a player's verification status
-    usage: /verifyinfo <player>
+    description: List verified players
     permission: viptiers.admin
 
   unverify:
-    description: Revoke a player's verification
-    usage: /unverify <player>
+    description: Remove a player's verification
     permission: viptiers.admin
-
-  tiertest:
-    description: Open the VIPTIERS testing menu
-    usage: /tiertest
-    permission: viptiers.test
 
 permissions:
   viptiers.admin:
-    description: Access VIPTIERS verification administration
+    description: Allows verification administration
     default: op
-
-  viptiers.test:
-    description: Join the VIPTIERS testing queue
-    default: true
