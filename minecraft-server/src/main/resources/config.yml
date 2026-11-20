@@ -13,3 +13,12 @@ messages:
   welcome: "&7Welcome to VIPTIERS!"
   verify: "&ePlease verify your Minecraft account on our website."
   verified: "&aYour account has been verified!"
+
+spawn:
+  world: "world"
+  x: 0.5
+  y: 150
+  z: 0.5
+  yaw: 0
+  pitch: 0
+  platform-radius: 4
